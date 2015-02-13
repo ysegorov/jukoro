@@ -13,12 +13,17 @@ def mergedicts(a, b):
         current = res.get(k, None)
         update = b.get(k)
         if isinstance(current, ObjectDict) or isinstance(update, ObjectDict):
-            res[k] = ObjectDict(mergedicts(res.get(k, {}), b.get(k)))
+            res[k] = ObjectDict(mergedicts(res.get(k, {}), update))
         elif isinstance(current, dict) and isinstance(update, dict):
-            res[k] = mergedicts(res[k], b[k])
+            res[k] = mergedicts(res[k], update)
+        elif isinstance(update, (list, tuple, set)):
+            # TODO members?
+            res[k] = type(update)(update)
         else:
-            res[k] = b[k]
-    return ObjectDict(res) if isinstance(a, ObjectDict) else res
+            res[k] = update
+    if isinstance(a, ObjectDict) or isinstance(b, ObjectDict):
+        return ObjectDict(res)
+    return res
 
 
 def os_user():
