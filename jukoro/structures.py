@@ -22,6 +22,10 @@ class ObjectDict(dict):
     def __delattr__(self, name):
         self.pop(name, None)
 
+    def copy(self):
+        # FIXME better way?
+        return self.__class__(super(ObjectDict, self).copy())
+
 
 class DefaultObjectDict(collections.defaultdict):
 
@@ -30,9 +34,6 @@ class DefaultObjectDict(collections.defaultdict):
 
     def __setattr(self, name, value):
         self[name] = value
-
-    def __delattr__(self, name):
-        self.pop(name)
 
 
 class LockRing(object):
@@ -53,8 +54,12 @@ class LockRing(object):
             return True
 
     def pop(self):
+        if not self:
+            raise IndexError('empty ring')
         item = self._store.pop()
-        self._locks.pop(item)
+        if item in self._locks:
+            self._locks.remove(item)
+        self._ring = None
         return item
 
     def lock(self, item):
@@ -81,6 +86,8 @@ class LockRing(object):
                     yield item
 
     def next(self):
+        if not self:
+            raise IndexError('empty ring')
         if not self._ring:
             self._ring = self._iter()
         item = next(self._ring)
