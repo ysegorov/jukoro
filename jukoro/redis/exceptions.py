@@ -7,3 +7,7 @@ class JukoroRedisException(Exception):
 
 class AlreadyLocked(JukoroRedisException):
     """ Exception for an unavailable lock """
+
+
+class QueueError(JukoroRedisException):
+    """ Exception for queue error """

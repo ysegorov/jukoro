@@ -142,3 +142,37 @@ class TestRedisCache(Base):
         self.assertEqual(a, cache.get(key))
         time.sleep(1.1)
         self.assertIsNone(cache.get(key))
+
+
+class TestRedisQueue(Base):
+
+    def test_control_queue(self):
+        from jukoro.redis.queue import CONTROL_QUEUE
+        queue = redis.RedisQueue(self.db, CONTROL_QUEUE)
+        self.assertRaises(redis.QueueError, lambda: queue.keys)
+
+    def test_queue(self):
+
+        def sender():
+            db = redis.RedisDb(URI, ns=NS)
+            queue = redis.RedisQueue(db)
+            time.sleep(.3)
+            queue.put('l1', 'a', 'b', 'c')
+            time.sleep(.3)
+            queue.put('l2', 'd', 'e', 'f')
+            time.sleep(.3)
+            queue.stop()
+
+        thread = threading.Thread(target=sender)
+        thread.daemon = True
+        thread.start()
+
+        queue = redis.RedisQueue(self.db, ['l1', 'l2'])
+        time.sleep(.1)
+
+        res = dict((self.db.key(x), []) for x in ['l1', 'l2'])
+        for channel, val in queue.consume():
+            res[channel].append(val)
+
+        self.assertEqual(res[self.db.key('l1')], ['a', 'b', 'c'])
+        self.assertEqual(res[self.db.key('l2')], ['d', 'e', 'f'])
