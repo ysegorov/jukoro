@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import datetime
+import functools
 import logging
 import os
 import unittest
@@ -9,6 +10,8 @@ import warnings
 import psycopg2
 
 from jukoro import pg
+from jukoro.pg import storage
+
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +25,12 @@ IS_ONLINE = False
 SQL_SETUP = """
 CREATE SCHEMA IF NOT EXISTS {schema};
 
+SET search_path TO {schema};
+
 -- global id sequence
 DO $$
 BEGIN
-    CREATE SEQUENCE {schema}.global_id_seq
+    CREATE SEQUENCE global_id_seq
         START WITH 1
         INCREMENT BY 1
         NO MINVALUE
@@ -37,14 +42,75 @@ END $$;
 
 
 -- basic entity table (for inheritance)
-CREATE TABLE IF NOT EXISTS {schema}."entity" (
+CREATE TABLE IF NOT EXISTS "entity" (
     "id" serial PRIMARY KEY,
-    "entity_id" bigint NOT NULL DEFAULT nextval('{schema}.global_id_seq'),
+    "entity_id" bigint NOT NULL DEFAULT nextval('global_id_seq'),
     "entity_start" timestamp with time zone DEFAULT current_timestamp,
     "entity_end" timestamp with time zone
             DEFAULT '2999-12-31 23:59:59.999+0'::timestamp with time zone,
     "data" jsonb NOT NULL
 );
+
+-- introspect table
+CREATE TABLE IF NOT EXISTS "introspect" (
+    "id" serial PRIMARY KEY
+) INHERITS ("entity");
+
+-- introspect master view
+CREATE OR REPLACE VIEW "introspect__live" AS
+    SELECT * FROM "introspect"
+    WHERE "entity_start" <= now() AND "entity_end" > now();
+
+-- introspect trigger on insert
+CREATE OR REPLACE FUNCTION ju_introspect__insert() RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.entity_id IS NOT NULL THEN
+        UPDATE "introspect" SET "entity_end" = now()
+            WHERE "entity_id" = NEW.entity_id AND "entity_end" > now();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "ju_before__introspect__insert"
+    BEFORE INSERT
+    ON "introspect"
+    FOR EACH ROW
+    EXECUTE PROCEDURE ju_introspect__insert();
+
+-- introspect trigger on delete
+CREATE OR REPLACE FUNCTION ju_introspect__delete() RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.entity_id IS NOT NULL THEN
+        UPDATE "introspect" SET "entity_end" = now()
+            WHERE "entity_id" = OLD.entity_id AND "entity_end" > now();
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "ju_before__introspect__delete"
+    BEFORE DELETE
+    ON "introspect"
+    FOR EACH ROW
+    EXECUTE PROCEDURE ju_introspect__delete();
+
+-- introspect indices
+CREATE INDEX ju_idx__introspect_name_entity_start_entity_end ON "introspect"
+    USING btree(("data"->>'name'), "entity_start", "entity_end" DESC);
+CREATE INDEX ju_idx__introspect_count_entity_start_entity_end
+    ON "introspect" USING
+    btree((("data"->>'count')::INTEGER), "entity_start", "entity_end" DESC);
+
+-- introspect constraints
+ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_count
+    CHECK (("data"->>'count') IS NOT NULL
+    AND ("data"->>'count')::INTEGER >= 0);
+ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_name
+    CHECK (("data"->>'name') IS NOT NULL AND length("data"->>'name') > 0);
+ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_description
+    CHECK (("data"->>'description') IS NOT NULL);
+
 """
 SQL_TEARDOWN = """
 DROP SCHEMA {schema} CASCADE;
@@ -142,6 +208,10 @@ class Base(unittest.TestCase):
         cls.pool.close()
         cls.pool = cls.uri_kwargs = None
 
+    def setUp(self):
+        if not IS_ONLINE:
+            self.skipTest('no db available')
+
 
 class TestWarmUp(Base):
 
@@ -149,6 +219,7 @@ class TestWarmUp(Base):
         self.assertEqual(self.pool.uri, URI)
 
     def test_warm_up(self):
+        # FIXME do not test private members
         self.assertEqual(len(self.pool), 0)
 
         with self.pool.transaction() as cursor:
@@ -174,11 +245,117 @@ class TestConnectionParams(Base):
             self.assertEqual(res['TimeZone'], 'UTC')
 
 
-@unittest.skip('TODO')
+class TestAttrs(Base):
+
+    @classmethod
+    def setUpClass(cls):
+
+        class User(pg.BaseUser):
+            db_table = 'test_user'
+
+            first_name = pg.Attr(title='First name')
+            last_name = pg.Attr(title='Last name')
+
+        cls.User = User
+
+    @classmethod
+    def tearDownClass(cls):
+        storage.unregister(cls.User)
+        cls.User = None
+
+    def test_attrs_inheritance(self):
+        BU = pg.BaseUser
+
+        self.assertTrue(hasattr(BU, 'username'))
+        self.assertTrue(hasattr(BU, 'email'))
+        self.assertTrue(hasattr(BU, 'password'))
+        self.assertFalse(hasattr(BU, 'first_name'))
+        self.assertFalse(hasattr(BU, 'last_name'))
+
+        self.assertTrue(hasattr(self.User, 'username'))
+        self.assertTrue(hasattr(self.User, 'email'))
+        self.assertTrue(hasattr(self.User, 'password'))
+        self.assertTrue(hasattr(self.User, 'first_name'))
+        self.assertTrue(hasattr(self.User, 'last_name'))
+
+        for attr in BU.attrs:
+            self.assertIsInstance(attr, pg.AttrDescr)
+
+        for attr in self.User.attrs:
+            self.assertIsInstance(attr, pg.AttrDescr)
+
+        bu_attrs = set(BU.attrs)
+        u_attrs = set(self.User.attrs)
+        self.assertTrue(u_attrs.issuperset(bu_attrs))
+
+    def test_db_table_attr(self):
+        self.assertFalse(hasattr(pg.BaseUser, 'db_table'))
+        self.assertFalse(hasattr(pg.BaseUser, 'db_view'))
+
+        self.assertTrue(hasattr(self.User, 'db_table'))
+        self.assertEqual(self.User.db_table, 'test_user')
+        self.assertTrue(hasattr(self.User, 'db_view'))
+        self.assertEqual(self.User.db_view, 'test_user__live')
+
+
 class TestIntrospect(Base):
 
-    def test(self):
+    @classmethod
+    def setUpClass(cls):
         pass
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
+    def test(self):
+        schema, current = pg.inspect(URI)
+        self.assertTrue(schema in current.schemas)
+        self.assertTrue('global_id_seq' in current.sequences)
+        self.assertTrue('introspect' in current.tables)
+        self.assertTrue('introspect__live' in current.views)
+        self.assertTrue('ju_before__introspect__insert' in current.triggers)
+        self.assertTrue('ju_before__introspect__delete' in current.triggers)
+        self.assertTrue('ju_idx__introspect_name_entity_start_entity_end'
+                        in current.indices)
+        self.assertTrue('ju_idx__introspect_count_entity_start_entity_end'
+                        in current.indices)
+        for nm in ('name', 'count', 'description'):
+            self.assertTrue('ju_validate__introspect_%s' % nm
+                            in current.constraints)
+
+
+class TestSyncDB(Base):
+
+    @classmethod
+    def setUpClass(cls):
+        storage.unregister(pg.Team)
+        #storage.unregister(pg.User)
+
+    @classmethod
+    def tearDownClass(cls):
+        #storage.register(pg.User)
+        storage.register(pg.Team)
+
+    def _syncdb_sql(self):
+        uri = URI + '__test_syncdb'
+
+        syncdb = storage.syncdb(uri)
+        create_sql = list(iter(lambda: next(syncdb), 'CUT'))
+        create_sql = ''.join(create_sql)
+        return create_sql
+
+    def test(self):
+        create_sql = self._syncdb_sql()
+        logger.debug(''.join(create_sql))
+
+        self.assertEqual(create_sql.count('CREATE SCHEMA'), 1)
+        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
+        self.assertEqual(create_sql.count('CREATE SEQUENCE'), 1)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 0)
+        self.assertEqual(create_sql.count('CREATE INDEX'), 0)
+        self.assertEqual(create_sql.count('ADD CONSTRAINT'), 0)
+        #raise RuntimeError
 
 
 @unittest.skip('TODO')

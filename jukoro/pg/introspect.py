@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from jukoro.structures import ObjectDict
+
 
 _TABLES = """
 SELECT
@@ -32,7 +34,7 @@ WHERE
 
 _CONSTRAINTS = """
 SELECT
-    constraint_name || '.' || table_name as qname
+    constraint_name as qname
 FROM
     information_schema.table_constraints
 WHERE
@@ -66,7 +68,7 @@ WHERE
     schemaname = %(schema)s;
 """
 
-MAP = {
+INTROMAP = {
     'tables': _TABLES,
     'views': _VIEWS,
     'triggers': _TRIGGERS,
@@ -77,7 +79,7 @@ MAP = {
 }
 
 
-class PgDbIntrospect(object):
+class PgIntrospect(object):
 
     def __init__(self, conn):
         self.conn = conn
@@ -91,8 +93,24 @@ class PgDbIntrospect(object):
     def _get(self, q, params):
         with self.conn.transaction() as _conn:
             resp = _conn.execute(q, params).all()
-            resp = set(r.qname for r in resp)
+            resp = set(r['qname'] for r in resp)
         return resp
 
     def __getattr__(self, name):
-        return self._get(MAP[name], {'schema': self.conn.schema})
+        if name not in INTROMAP:
+            raise AttributeError('Unknown attribute "%s"' % name)
+        return self._get(INTROMAP[name], {'schema': self.conn.schema})
+
+
+def inspect(uri):
+
+    from jukoro.pg import PgConnection
+
+    conn = PgConnection(uri)
+    schema = conn.schema
+
+    with PgIntrospect(conn) as inspector:
+        state = ObjectDict((k, getattr(inspector, k)) for k in INTROMAP)
+
+    conn.close()
+    return schema, state
