@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from jukoro.structures import ObjectDict
+from collections import OrderedDict
 
 
 _TABLES = """
@@ -68,15 +68,15 @@ WHERE
     schemaname = %(schema)s;
 """
 
-INTROMAP = {
-    'tables': _TABLES,
-    'views': _VIEWS,
-    'triggers': _TRIGGERS,
-    'constraints': _CONSTRAINTS,
-    'indices': _INDICES,
-    'sequences': _SEQUENCES,
-    'schemas': _SCHEMAS,
-}
+INTROMAP = OrderedDict(
+    schemas=_SCHEMAS,
+    sequences=_SEQUENCES,
+    tables=_TABLES,
+    views=_VIEWS,
+    triggers=_TRIGGERS,
+    indices=_INDICES,
+    constraints=_CONSTRAINTS,
+)
 
 
 class PgIntrospect(object):
@@ -93,13 +93,37 @@ class PgIntrospect(object):
     def _get(self, q, params):
         with self.conn.transaction() as _conn:
             resp = _conn.execute(q, params).all()
-            resp = set(r['qname'] for r in resp)
+            resp = [r['qname'] for r in resp]
         return resp
 
     def __getattr__(self, name):
         if name not in INTROMAP:
             raise AttributeError('Unknown attribute "%s"' % name)
         return self._get(INTROMAP[name], {'schema': self.conn.schema})
+
+
+class StateValues(object):
+
+    def __init__(self, values):
+        self._values = set(values or [])
+
+    def __contains__(self, k):
+        return k in self._values
+
+    def pop(self, k):
+        self._values.discard(k)
+
+    def clear(self):
+        self._values.clear()
+
+
+class State(object):
+
+    def __init__(self, pairs):
+        self._pairs = OrderedDict(pairs)
+
+    def __getattr__(self, name):
+        return self._pairs.get(name)
 
 
 def inspect(uri):
@@ -110,7 +134,8 @@ def inspect(uri):
     schema = conn.schema
 
     with PgIntrospect(conn) as inspector:
-        state = ObjectDict((k, getattr(inspector, k)) for k in INTROMAP)
+        state = State(
+            (k, StateValues(getattr(inspector, k))) for k in INTROMAP)
 
     conn.close()
     return schema, state

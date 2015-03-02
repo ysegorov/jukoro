@@ -25,7 +25,8 @@ class BaseSql(object):
     def __init__(self, instance):
         self.instance = instance
 
-    def __str__(self):
+    @property
+    def sql(self):
         return self.query.format(**self.sql_vars())
 
     def sql_vars(self):
@@ -62,14 +63,6 @@ CREATE TABLE IF NOT EXISTS "entity" (
 );
 """
 
-
-class InitSchemaSql(BaseSql):
-    query = INIT_SCHEMA
-
-    def sql_vars(self):
-        return {'schema': self.instance.schema}
-
-
 CREATE_TABLE = """
 -- {db_table} table
 CREATE TABLE IF NOT EXISTS "{db_table}" (
@@ -80,6 +73,10 @@ CREATE TABLE IF NOT EXISTS "{db_table}" (
 
 class CreateTableSql(BaseSql):
     query = CREATE_TABLE
+
+    @property
+    def name(self):
+        return self.instance.db_table
 
 
 CREATE_VIEW = """
@@ -92,23 +89,27 @@ CREATE OR REPLACE VIEW "{db_view}" AS SELECT * FROM "{db_table}"
 class CreateViewSql(BaseSql):
     query = CREATE_VIEW
 
+    @property
+    def name(self):
+        return self.instance.db_view
+
 
 class BaseTrigger(BaseSql):
 
     @property
     def trigger_proc_name(self):
         instance = self.instance
-        return 'ju_{}__{}'.format(instance.db_table, self.suffix)
+        return 'ju_before__{}__{}'.format(instance.db_table, self.suffix)
 
     @property
-    def trigger_name(self):
+    def name(self):
         instance = self.instance
-        return 'ju_before_{}__{}'.format(instance.db_table, self.suffix)
+        return 'ju_before__{}__{}'.format(instance.db_table, self.suffix)
 
     def sql_vars(self):
         kwargs = super(BaseTrigger, self).sql_vars()
         kwargs.update({
-            'trigger_name': self.trigger_name,
+            'trigger_name': self.name,
             'trigger_proc_name': self.trigger_proc_name
         })
         return kwargs
@@ -166,19 +167,17 @@ class TriggerOnDeleteSql(BaseTrigger):
 
 
 class Schema(object):
-    sql_init_schema = SqlDescr(InitSchemaSql)
 
     def __init__(self, schema):
         self._schema = schema
 
     @property
-    def schema(self):
-        return self._schema
+    def sql(self):
+        return INIT_SCHEMA.format(schema=self.schema)
 
     @property
-    def tables(self):
-        for table in _registry.itervalues():
-            yield table
+    def schema(self):
+        return self._schema
 
 
 class Table(object):
@@ -199,10 +198,35 @@ class Table(object):
         return self._entity_class.db_view
 
     @property
-    def db_indices(self):
+    def tables(self):
+        yield self.sql_create_table
+
+    @property
+    def views(self):
+        yield self.sql_create_view
+
+    @property
+    def triggers(self):
+        for nm in ('sql_trigger_on_insert', 'sql_trigger_on_delete'):
+            yield getattr(self, nm)
+
+    @property
+    def indices(self):
         for attr in self._entity_class.attrs:
             if attr.db_index:
                 yield Index(self, attr)
+
+    @property
+    def constraints(self):
+        for attr in self._entity_class.attrs:
+            if attr.db_not_null:
+                yield Constraint(self, attr)
+
+    @property
+    def items(self):
+        for name in ('tables', 'views', 'triggers', 'indices', 'constraints'):
+            yield name, getattr(self, name)
+
 
 INDEX = """
 CREATE INDEX {index_name} ON
@@ -210,29 +234,7 @@ CREATE INDEX {index_name} ON
 """
 
 
-class IndexSql(BaseSql):
-    query = INDEX
-
-    @property
-    def index_name(self):
-        return 'ju_idx__{}_{}_entity_start_entity_end'.format(
-            self.instance.db_table, self.instance.attr_slug)
-
-    @property
-    def spec(self):
-        spec = '("data"->>\'{attr}\')'
-        if self.instance.attr_type == 'int':
-            spec = '(%s::INTEGER)' % spec
-        return spec.format(attr=self.instance.attr_slug)
-
-    def sql_vars(self):
-        kwargs = super(IndexSql, self).sql_vars()
-        kwargs.update({'index_name': self.index_name, 'spec': self.spec})
-        return kwargs
-
-
 class Index(object):
-    sql_index = SqlDescr(IndexSql)
 
     def __init__(self, table, attr):
         self._table = table
@@ -243,31 +245,78 @@ class Index(object):
         return self._table.db_table
 
     @property
-    def db_view(self):
-        return self._table.db_view
+    def name(self):
+        return 'ju_idx__{}__{}_entity_start_entity_end'.format(
+            self.db_table, self._attr.slug)
 
     @property
-    def attr_slug(self):
-        return self._attr.slug
+    def spec(self):
+        spec = '("data"->>\'{attr}\')'
+        if self._attr.is_int:
+            spec = '(%s::INTEGER)' % spec
+        return spec.format(attr=self._attr.slug)
+
+    def sql_vars(self):
+        return {
+            'index_name': self.name,
+            'spec': self.spec,
+            'db_table': self.db_table,
+        }
 
     @property
-    def attr_type(self):
-        return self._attr.db_type
+    def sql(self):
+        return INDEX.format(**self.sql_vars())
 
 
 CONSTRAINT_INT = """
-ALTER TABLE "{db_table}" ADD CONSTRAINT ju_validate__{db_table}_{attr}
+ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
     CHECK (("data"->>'{attr}') IS NOT NULL
     AND ("data"->>'{attr}')::INTEGER >= 0);
 """
 CONSTRAINT_TEXT = """
-ALTER TABLE "{db_table}" ADD CONSTRAINT ju_validate__{db_table}_{attr}
-    CHECK (("data"->>'{attr}') IS NOT NULL AND length("data"->>'{attr}') > 0);
+ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
+    CHECK (("data"->>'{attr}') IS NOT NULL
+    AND length("data"->>'{attr}') > {minlen});
 """
 CONSTRAINT_NOT_NULL = """
-ALTER TABLE "{db_table}" ADD CONSTRAINT ju_validate__{db_table}_{attr}
+ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
     CHECK (("data"->>'{attr}') IS NOT NULL);
 """
+
+
+class Constraint(object):
+
+    def __init__(self, table, attr):
+        self._table = table
+        self._attr = attr
+
+    @property
+    def db_table(self):
+        return self._table.db_table
+
+    @property
+    def name(self):
+        return 'ju_validate__{}__{}'.format(self.db_table,
+                                            self._attr.slug)
+
+    def sql_vars(self):
+        return {
+            'constraint_name': self.name,
+            'attr': self._attr.slug,
+            'db_table': self.db_table,
+            'minlen': self._attr.minlen,
+        }
+
+    def sql_tmpl(self):
+        if self._attr.is_int:
+            return CONSTRAINT_INT
+        if self._attr.is_text:
+            return CONSTRAINT_TEXT
+        return CONSTRAINT_NOT_NULL
+
+    @property
+    def sql(self):
+        return self.sql_tmpl().format(**self.sql_vars())
 
 
 class DBTableName(object):
@@ -305,38 +354,35 @@ def unregister(entity_class):
         _registry.pop(entity_class.db_table, None)
 
 
+def tables():
+    for table in _registry.itervalues():
+        yield table
+
+
+def _to_create(table, state):
+
+    for name, items in table.items:
+        current = getattr(state, name)
+        for it in items:
+            if it.name not in current:
+                yield it.sql
+            else:
+                current.pop(it.name)
+
+
 def syncdb(uri):
 
-    schema_name, current = inspect(uri)
+    schema_name, state = inspect(uri)
     schema = Schema(schema_name)
 
-    if schema_name not in current.schemas:
-        yield str(schema.sql_init_schema)
-    current.schemas = []
-    current.sequences = []
-    current.tables.discard(ET)
+    if schema_name not in state.schemas:
+        yield schema.sql
+    state.schemas.clear()
+    state.sequences.clear()  # TODO
+    state.tables.pop(ET)
 
-    for table in schema.tables:
-        if table.db_table not in current.tables:
-            yield str(table.sql_create_table)
-        else:
-            current.tables.discard(table.db_table)
-        if table.db_view not in current.views:
-            yield str(table.sql_create_view)
-        else:
-            current.views.discard(table.db_view)
-
-        for trig in (table.sql_trigger_on_insert, table.sql_trigger_on_delete):
-            if trig.trigger_name not in current.triggers:
-                yield str(trig)
-            else:
-                current.triggers.discard(trig.trigger_name)
-
-        for idx in table.db_indices:
-            sql_index = idx.sql_index
-            if sql_index.index_name not in current.indices:
-                yield str(sql_index)
-            else:
-                current.indices.discard(sql_index.index_name)
+    for table in tables():
+        for sql in _to_create(table, state):
+            yield sql
 
     yield 'CUT'

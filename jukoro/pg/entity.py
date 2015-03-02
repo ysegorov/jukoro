@@ -67,6 +67,7 @@ class BaseUser(BaseEntity):
     email = Attr(title='Email',
                  db_index=True, db_type='text', db_not_null=True, minlen=6)
     password = Attr(title='Password', db_type='text', db_not_null=True)
+    lcounter = Attr(title='Login counter', db_index=True, db_type='int', db_not_null=True)
 
 
 class User(BaseUser):

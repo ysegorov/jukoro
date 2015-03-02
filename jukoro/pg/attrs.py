@@ -10,9 +10,18 @@ class Attr(object):
         self.db_type = kwargs.pop('db_type', False)
         self.db_not_null = kwargs.pop('db_not_null', True)
         self.title = kwargs.pop('title', 'undefined')
-        self.maxlen = kwargs.pop('maxlen', -1)
-        self.minlen = kwargs.pop('minlen', -1)
+        self.maxlen = kwargs.pop('maxlen', 0)
+        self.minlen = kwargs.pop('minlen', 0)
         self.wrapper = kwargs.pop('wrapper', None)
+
+    @property
+    def is_int(self):
+        dbt = (self.db_type or 'undef').lower()
+        return dbt in ['int', 'integer', 'bigint']
+
+    @property
+    def is_text(self):
+        return self.db_type == 'text'
 
 
 class AttrDescr(object):
