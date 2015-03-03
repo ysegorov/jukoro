@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 
+from jukoro.pg.exceptions import PgAlreadyRegisteredError
 from jukoro.pg.introspect import inspect
 
 
@@ -187,8 +188,14 @@ class Table(object):
     sql_trigger_on_insert = SqlDescr(TriggerOnInsertSql)
     sql_trigger_on_delete = SqlDescr(TriggerOnDeleteSql)
 
+    state_values = ('tables', 'views', 'triggers', 'indices', 'constraints')
+
     def __init__(self, entity_class):
         self._entity_class = entity_class
+
+    @property
+    def eclass(self):
+        return self._entity_class
 
     @property
     def db_table(self):
@@ -225,7 +232,7 @@ class Table(object):
 
     @property
     def items(self):
-        for name in ('tables', 'views', 'triggers', 'indices', 'constraints'):
+        for name in self.state_values:
             yield name, getattr(self, name)
 
 
@@ -343,16 +350,22 @@ _registry = OrderedDict()
 
 
 def register(entity_class):
-    assert bool(entity_class.db_table)
     tn = entity_class.db_table
     if tn in _registry:
-        raise AttributeError('Model for "%s" already registered' % tn)
+        raise PgAlreadyRegisteredError(
+            'Model for "%s" already registered' % tn)
     _registry[entity_class.db_table] = Table(entity_class)
 
 
 def unregister(entity_class):
     if entity_class.db_table:
         _registry.pop(entity_class.db_table, None)
+
+
+def is_registered(entity_class):
+    if hasattr(entity_class, 'db_table'):
+        return entity_class.db_table and entity_class.db_table in _registry
+    return False
 
 
 def tables():
@@ -371,7 +384,31 @@ def _to_create(table, state):
                 current.pop(it.name)
 
 
-def syncdb(uri):
+DROPS = {
+    'indices': 'DROP INDEX IF EXISTS {name};',
+    'tables': 'DROP TABLE "{name}" CASCADE;',
+    'views': 'DROP VIEW IF EXISTS "{name}";',
+    'constraints': 'ALTER TABLE "{db_table}" DROP CONSTRAINT IF EXISTS {name};'
+}
+
+
+def _to_drop(state):
+
+    for name in reversed(Table.state_values):
+        if name == 'triggers':
+            continue
+        items = getattr(state, name)
+        sql = DROPS[name]
+        for it in items:
+            if name in ('indices', 'constraints') and not it.startswith('ju'):
+                continue
+            tn = ''
+            if name == 'constraints':
+                tn = '__'.join(it.split('__')[1:-1])
+            yield sql.format(db_table=tn, name=it) + '\n'
+
+
+def _syncdb(uri):
 
     schema_name, state = inspect(uri)
     schema = Schema(schema_name)
@@ -387,3 +424,15 @@ def syncdb(uri):
             yield sql
 
     yield 'CUT'
+
+    for sql in _to_drop(state):
+        yield sql
+
+
+def syncdb(uri):
+    proc = _syncdb(uri)
+    create_sql = list(iter(lambda: proc.next(), 'CUT'))
+    drop_sql = list(proc)
+    create_sql = ''.join(create_sql)
+    drop_sql = ''.join(drop_sql)
+    return create_sql, drop_sql

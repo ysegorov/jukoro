@@ -110,6 +110,10 @@ class StateValues(object):
     def __contains__(self, k):
         return k in self._values
 
+    def __iter__(self):
+        for item in self._values:
+            yield item
+
     def pop(self, k):
         self._values.discard(k)
 

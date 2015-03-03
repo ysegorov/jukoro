@@ -7,3 +7,7 @@ class PgError(Exception):
 
 class PgUriError(PgError):
     """ Pg uri parsing error """
+
+
+class PgAlreadyRegisteredError(PgError):
+    """ Entity class registered error """

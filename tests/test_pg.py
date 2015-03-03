@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import datetime
-import functools
 import logging
 import os
 import unittest
@@ -21,6 +20,7 @@ TEST_URI = 'postgresql://test:test@localhost:5467/jukoro_test'
 BAD_URI = 'postgresq://localhost:5432/jukoro_test.a1'
 
 IS_ONLINE = False
+SCHEMA = 'public'
 
 SQL_SETUP = """
 CREATE SCHEMA IF NOT EXISTS {schema};
@@ -120,6 +120,7 @@ DROP SCHEMA {schema} CASCADE;
 def setUp():
     global IS_ONLINE
     global URI
+    global SCHEMA
     kwargs = pg.pg_uri_to_kwargs(URI)
     try:
         conn = psycopg2.connect(
@@ -136,6 +137,7 @@ def setUp():
             kwargs['schema'] = (
                 'ju_%s' % datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
             URI += '.%s' % kwargs['schema']
+            SCHEMA = kwargs['schema']
         # create test table
         conn.autocommit = True
         cursor = conn.cursor()
@@ -195,6 +197,7 @@ class TestUri(unittest.TestCase):
 
 class Base(unittest.TestCase):
     pass
+
 
 class BaseWithPool(unittest.TestCase):
     pool = None
@@ -320,7 +323,7 @@ class TestIntrospect(Base):
                             in current.constraints)
 
 
-class TestSyncDB(Base):
+class TestSyncDBEmptySchema(Base):
 
     @classmethod
     def setUpClass(cls):
@@ -332,25 +335,105 @@ class TestSyncDB(Base):
         storage.register(pg.User)
         storage.register(pg.Team)
 
-    def _syncdb_sql(self):
-        uri = URI + '__test_syncdb'
+    @property
+    def uri(self):
+        return URI + '__test_syncdb'
 
-        syncdb = storage.syncdb(uri)
-        create_sql = list(iter(lambda: syncdb.next(), 'CUT'))
-        create_sql = ''.join(create_sql)
-        return create_sql
+    @property
+    def schema(self):
+        return SCHEMA + '__test_syncdb'
+
+    def _syncdb_sql(self):
+        return storage.syncdb(self.uri)
 
     def test(self):
-        create_sql = self._syncdb_sql()
-        logger.debug(create_sql)
+        create_sql, drop_sql = self._syncdb_sql()
+        # logger.debug(create_sql)
+        # logger.debug(drop_sql)
 
         self.assertEqual(create_sql.count('CREATE SCHEMA'), 1)
-        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
         self.assertEqual(create_sql.count('CREATE SEQUENCE'), 1)
+        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 0)
         self.assertEqual(create_sql.count('CREATE TRIGGER'), 0)
         self.assertEqual(create_sql.count('CREATE INDEX'), 0)
         self.assertEqual(create_sql.count('ADD CONSTRAINT'), 0)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 0)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 0)
+        self.assertEqual(drop_sql.count('DROP INDEX'), 0)
+        self.assertEqual(drop_sql.count('DROP CONSTRAINT'), 0)
         #raise RuntimeError
+
+
+class TestSyncDB(TestSyncDBEmptySchema):
+
+    def test(self):
+        storage.register(pg.User)
+
+        create_sql, drop_sql = self._syncdb_sql()
+
+        logger.debug(create_sql)
+        self.assertEqual(create_sql.count('CREATE TABLE'), 2)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 1)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 2)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 0)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 0)
+
+        uri = self.uri
+        conn = pg.PgConnection(uri)
+
+        with conn.transaction() as cursor:
+            cursor.execute(create_sql)
+
+        storage.register(pg.Team)
+        storage.unregister(pg.User)
+
+        create_sql, drop_sql = self._syncdb_sql()
+
+        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 1)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 2)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 1)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 1)
+
+        with conn.transaction() as cursor:
+            cursor.execute(create_sql)
+            cursor.execute(drop_sql)
+
+        storage.unregister(pg.Team)
+
+        create_sql, drop_sql = self._syncdb_sql()
+
+        self.assertEqual(create_sql.count('CREATE TABLE'), 0)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 0)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 0)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 1)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 1)
+
+        self.assertFalse(create_sql.strip())
+
+        with conn.transaction() as cursor:
+            cursor.execute(drop_sql)
+            cursor.execute(
+                'DROP SCHEMA {schema} CASCADE;'.format(schema=self.schema))
+
+        create_sql, drop_sql = self._syncdb_sql()
+
+        self.assertEqual(create_sql.count('CREATE SCHEMA'), 1)
+        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 0)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 0)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 0)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 0)
+
+        self.assertFalse(drop_sql.strip())
+
+        conn.close()
 
 
 class TestSqlDescr(Base):
@@ -436,6 +519,61 @@ class TestBaseSql(Base):
         self.assertEqual(b.s2.sql, 'hello b')
         self.assertEqual(c.s3.sql, 'hello cv')
         self.assertEqual(d.s4.sql, 'hello d dv')
+
+
+class TestStorageRegistry(Base):
+
+    def test(self):
+
+        class A(pg.BaseEntity):
+            pass
+
+        class B(pg.BaseEntity):
+            db_table = None
+
+        class C(pg.BaseEntity):
+            db_table = 'table_c'
+            auto_register = False
+
+        class D(pg.BaseEntity):
+            db_table = 'table_d'
+
+        self.assertFalse(storage.is_registered(A))
+        self.assertFalse(storage.is_registered(B))
+        self.assertFalse(storage.is_registered(C))
+        self.assertTrue(storage.is_registered(D))
+
+        with self.assertRaises(AttributeError):
+            storage.register(A)
+            storage.register(B)
+
+        eclasses = self._entity_classes()
+        self.assertNotIn(C, eclasses)
+        self.assertIn(D, eclasses)
+
+        storage.register(C)
+
+        with self.assertRaises(pg.PgAlreadyRegisteredError):
+            storage.register(C)
+
+        with self.assertRaises(pg.PgAlreadyRegisteredError):
+            storage.register(D)
+
+        eclasses = self._entity_classes()
+        self.assertIn(C, eclasses)
+        self.assertTrue(storage.is_registered(C))
+
+        storage.unregister(C)
+        storage.unregister(D)
+
+        eclasses = self._entity_classes()
+        self.assertNotIn(C, eclasses)
+
+        self.assertFalse(storage.is_registered(C))
+        self.assertFalse(storage.is_registered(D))
+
+    def _entity_classes(self):
+        return [x.eclass for x in storage.tables()]
 
 
 @unittest.skip('TODO')

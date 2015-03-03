@@ -39,7 +39,7 @@ class EntityMeta(type):
 
         klass = super(EntityMeta, mcs).__new__(mcs, name, bases, dct)
 
-        if tn is not None:
+        if tn is not None and dct.get('auto_register', True):
             storage.register(klass)
         return klass
 
