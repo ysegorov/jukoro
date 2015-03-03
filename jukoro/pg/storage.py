@@ -31,10 +31,11 @@ class BaseSql(object):
 
     def sql_vars(self):
         instance = self.instance
-        return {
-            'db_table': instance.db_table,
-            'db_view': instance.db_view,
-        }
+        kwargs = {}
+        for attr in ('db_table', 'db_view'):
+            if hasattr(instance, attr):
+                kwargs[attr] = getattr(instance, attr)
+        return kwargs
 
 
 SEQ = 'global_entity_id_seq'  # for internal reference only

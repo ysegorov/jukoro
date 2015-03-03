@@ -194,6 +194,9 @@ class TestUri(unittest.TestCase):
 
 
 class Base(unittest.TestCase):
+    pass
+
+class BaseWithPool(unittest.TestCase):
     pool = None
     pool_size = 3
     uri_kwargs = None
@@ -213,7 +216,7 @@ class Base(unittest.TestCase):
             self.skipTest('no db available')
 
 
-class TestWarmUp(Base):
+class TestWarmUp(BaseWithPool):
 
     def test_uri(self):
         self.assertEqual(self.pool.uri, URI)
@@ -231,7 +234,7 @@ class TestWarmUp(Base):
         self.assertEqual(len(self.pool), self.pool_size)
 
 
-class TestConnectionParams(Base):
+class TestConnectionParams(BaseWithPool):
 
     def test_connection_params(self):
         with self.pool.transaction() as cursor:
@@ -300,14 +303,6 @@ class TestAttrs(Base):
 
 class TestIntrospect(Base):
 
-    @classmethod
-    def setUpClass(cls):
-        pass
-
-    @classmethod
-    def tearDownClass(cls):
-        pass
-
     def test(self):
         schema, current = pg.inspect(URI)
         self.assertTrue(schema in current.schemas)
@@ -330,24 +325,24 @@ class TestSyncDB(Base):
     @classmethod
     def setUpClass(cls):
         storage.unregister(pg.Team)
-        #storage.unregister(pg.User)
+        storage.unregister(pg.User)
 
     @classmethod
     def tearDownClass(cls):
-        #storage.register(pg.User)
+        storage.register(pg.User)
         storage.register(pg.Team)
 
     def _syncdb_sql(self):
         uri = URI + '__test_syncdb'
 
         syncdb = storage.syncdb(uri)
-        create_sql = list(iter(lambda: next(syncdb), 'CUT'))
+        create_sql = list(iter(lambda: syncdb.next(), 'CUT'))
         create_sql = ''.join(create_sql)
         return create_sql
 
     def test(self):
         create_sql = self._syncdb_sql()
-        logger.debug(''.join(create_sql))
+        logger.debug(create_sql)
 
         self.assertEqual(create_sql.count('CREATE SCHEMA'), 1)
         self.assertEqual(create_sql.count('CREATE TABLE'), 1)
@@ -356,6 +351,91 @@ class TestSyncDB(Base):
         self.assertEqual(create_sql.count('CREATE INDEX'), 0)
         self.assertEqual(create_sql.count('ADD CONSTRAINT'), 0)
         #raise RuntimeError
+
+
+class TestSqlDescr(Base):
+
+    def test(self):
+
+        class A(object):
+
+            def __init__(self, instance):
+                self.instance = instance
+
+        class B(object):
+            a = storage.SqlDescr(A)
+
+        self.assertIs(B.a.target, A)
+        self.assertIsInstance(B.a, storage.SqlDescr)
+        self.assertIsInstance(B().a, A)
+        with self.assertRaises(AttributeError):
+            B().a = True
+
+
+class TestBaseSql(Base):
+
+    def test(self):
+
+        class S1(storage.BaseSql):
+            query = 'hello'
+
+        class S2(storage.BaseSql):
+            query = 'hello {db_table}'
+
+        class S3(storage.BaseSql):
+            query = 'hello {db_view}'
+
+        class S4(storage.BaseSql):
+            query = 'hello {db_table} {db_view}'
+
+        class A(object):
+            asql = storage.SqlDescr(storage.BaseSql)
+            s1 = storage.SqlDescr(S1)
+
+        class B(object):
+            s2 = storage.SqlDescr(S2)
+
+            @property
+            def db_table(self):
+                return 'b'
+
+        class C(object):
+            s3 = storage.SqlDescr(S3)
+
+            @property
+            def db_view(self):
+                return 'cv'
+
+        class D(object):
+            s4 = storage.SqlDescr(S4)
+
+            @property
+            def db_table(self):
+                return 'd'
+
+            @property
+            def db_view(self):
+                return 'dv'
+
+        a, b, c, d = A(), B(), C(), D()
+        self.assertIsInstance(a.asql, storage.BaseSql)
+        self.assertIsInstance(a.s1, S1)
+        self.assertIsInstance(b.s2, S2)
+        self.assertIsInstance(c.s3, S3)
+        self.assertIsInstance(d.s4, S4)
+        with self.assertRaises(AttributeError):
+            sql = a.asql.sql
+
+        self.assertDictEqual(a.asql.sql_vars(), {})
+        self.assertDictEqual(a.s1.sql_vars(), {})
+        self.assertDictEqual(b.s2.sql_vars(), {'db_table': 'b'})
+        self.assertDictEqual(c.s3.sql_vars(), {'db_view': 'cv'})
+        self.assertDictEqual(d.s4.sql_vars(),
+                             {'db_view': 'dv', 'db_table': 'd'})
+        self.assertEqual(a.s1.sql, 'hello')
+        self.assertEqual(b.s2.sql, 'hello b')
+        self.assertEqual(c.s3.sql, 'hello cv')
+        self.assertEqual(d.s4.sql, 'hello d dv')
 
 
 @unittest.skip('TODO')
