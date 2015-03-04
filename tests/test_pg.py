@@ -300,7 +300,7 @@ class TestSyncDB(TestSyncDBEmptySchema):
 
         create_sql, drop_sql = self._syncdb_sql()
 
-        logger.debug(create_sql)
+        # logger.debug(create_sql)
         self.assertEqual(create_sql.count('CREATE TABLE'), 2)
         self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 1)
         self.assertEqual(create_sql.count('CREATE TRIGGER'), 2)
