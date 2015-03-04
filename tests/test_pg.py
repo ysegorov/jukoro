@@ -22,99 +22,26 @@ BAD_URI = 'postgresq://localhost:5432/jukoro_test.a1'
 IS_ONLINE = False
 SCHEMA = 'public'
 
-SQL_SETUP = """
-CREATE SCHEMA IF NOT EXISTS {schema};
-
-SET search_path TO {schema};
-
--- global id sequence
-DO $$
-BEGIN
-    CREATE SEQUENCE global_id_seq
-        START WITH 1
-        INCREMENT BY 1
-        NO MINVALUE
-        NO MAXVALUE
-        CACHE 1;
-EXCEPTION WHEN duplicate_table THEN
-    -- do nothing, it's already there
-END $$;
-
-
--- basic entity table (for inheritance)
-CREATE TABLE IF NOT EXISTS "entity" (
-    "id" serial PRIMARY KEY,
-    "entity_id" bigint NOT NULL DEFAULT nextval('global_id_seq'),
-    "entity_start" timestamp with time zone DEFAULT current_timestamp,
-    "entity_end" timestamp with time zone
-            DEFAULT '2999-12-31 23:59:59.999+0'::timestamp with time zone,
-    "data" jsonb NOT NULL
-);
-
--- introspect table
-CREATE TABLE IF NOT EXISTS "introspect" (
-    "id" serial PRIMARY KEY
-) INHERITS ("entity");
-
--- introspect master view
-CREATE OR REPLACE VIEW "introspect__live" AS
-    SELECT * FROM "introspect"
-    WHERE "entity_start" <= now() AND "entity_end" > now();
-
--- introspect trigger on insert
-CREATE OR REPLACE FUNCTION ju_introspect__insert() RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.entity_id IS NOT NULL THEN
-        UPDATE "introspect" SET "entity_end" = now()
-            WHERE "entity_id" = NEW.entity_id AND "entity_end" > now();
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER "ju_before__introspect__insert"
-    BEFORE INSERT
-    ON "introspect"
-    FOR EACH ROW
-    EXECUTE PROCEDURE ju_introspect__insert();
-
--- introspect trigger on delete
-CREATE OR REPLACE FUNCTION ju_introspect__delete() RETURNS TRIGGER AS $$
-BEGIN
-    IF OLD.entity_id IS NOT NULL THEN
-        UPDATE "introspect" SET "entity_end" = now()
-            WHERE "entity_id" = OLD.entity_id AND "entity_end" > now();
-    END IF;
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER "ju_before__introspect__delete"
-    BEFORE DELETE
-    ON "introspect"
-    FOR EACH ROW
-    EXECUTE PROCEDURE ju_introspect__delete();
-
--- introspect indices
-CREATE INDEX ju_idx__introspect_name_entity_start_entity_end ON "introspect"
-    USING btree(("data"->>'name'), "entity_start", "entity_end" DESC);
-CREATE INDEX ju_idx__introspect_count_entity_start_entity_end
-    ON "introspect" USING
-    btree((("data"->>'count')::INTEGER), "entity_start", "entity_end" DESC);
-
--- introspect constraints
-ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_count
-    CHECK (("data"->>'count') IS NOT NULL
-    AND ("data"->>'count')::INTEGER >= 0);
-ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_name
-    CHECK (("data"->>'name') IS NOT NULL AND length("data"->>'name') > 0);
-ALTER TABLE "introspect" ADD CONSTRAINT ju_validate__introspect_description
-    CHECK (("data"->>'description') IS NOT NULL);
-
-"""
 SQL_TEARDOWN = """
 DROP SCHEMA {schema} CASCADE;
 """
+
+
+class TestEntity(pg.BaseEntity):
+    db_table = 'test_pg'
+
+    attr1 = pg.Attr(title='Attr 1',
+                    db_index=True, db_type='text', db_not_null=True, minlen=4)
+    attr2 = pg.Attr(title='Attr 2',
+                    db_index=True, db_type='text', db_not_null=True, minlen=6)
+    attr3 = pg.Attr(title='Attr 3',
+                    db_type='text', db_not_null=True)
+    attr4 = pg.Attr(title='Attr 4',
+                    db_index=True, db_type='int', db_not_null=True)
+    attr5 = pg.Attr(title='Attr 5',
+                    db_type='int', db_not_null=True)
+    attr6 = pg.Attr(title='Attr 6',
+                    db_type='int', db_not_null=False)
 
 
 def setUp():
@@ -138,10 +65,12 @@ def setUp():
                 'ju_%s' % datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
             URI += '.%s' % kwargs['schema']
             SCHEMA = kwargs['schema']
-        # create test table
+        # create test schema and tables
+        sql_create, sql_drop = storage.syncdb(URI)
+        assert not sql_drop.strip()
         conn.autocommit = True
         cursor = conn.cursor()
-        cursor.execute(SQL_SETUP.format(schema=kwargs['schema']))
+        cursor.execute(sql_create)
         cursor.close()
         conn.close()
 
@@ -309,31 +238,29 @@ class TestIntrospect(Base):
     def test(self):
         schema, current = pg.inspect(URI)
         self.assertTrue(schema in current.schemas)
-        self.assertTrue('global_id_seq' in current.sequences)
-        self.assertTrue('introspect' in current.tables)
-        self.assertTrue('introspect__live' in current.views)
-        self.assertTrue('ju_before__introspect__insert' in current.triggers)
-        self.assertTrue('ju_before__introspect__delete' in current.triggers)
-        self.assertTrue('ju_idx__introspect_name_entity_start_entity_end'
+        self.assertTrue('test_pg' in current.tables)
+        self.assertTrue('test_pg__live' in current.views)
+        self.assertTrue('ju_before__test_pg__insert' in current.triggers)
+        self.assertTrue('ju_before__test_pg__delete' in current.triggers)
+        self.assertTrue('ju_idx__test_pg__attr1_entity_start_entity_end'
                         in current.indices)
-        self.assertTrue('ju_idx__introspect_count_entity_start_entity_end'
+        self.assertTrue('ju_idx__test_pg__attr2_entity_start_entity_end'
                         in current.indices)
-        for nm in ('name', 'count', 'description'):
-            self.assertTrue('ju_validate__introspect_%s' % nm
+        for idx in xrange(1, 6):
+            self.assertTrue('ju_validate__test_pg__attr%s' % idx
                             in current.constraints)
+        self.assertFalse('ju_validate__test_pg__attr6' in current.constraints)
 
 
 class TestSyncDBEmptySchema(Base):
 
     @classmethod
     def setUpClass(cls):
-        storage.unregister(pg.Team)
-        storage.unregister(pg.User)
+        storage.unregister(TestEntity)
 
     @classmethod
     def tearDownClass(cls):
-        storage.register(pg.User)
-        storage.register(pg.Team)
+        storage.register(TestEntity)
 
     @property
     def uri(self):
@@ -369,7 +296,7 @@ class TestSyncDBEmptySchema(Base):
 class TestSyncDB(TestSyncDBEmptySchema):
 
     def test(self):
-        storage.register(pg.User)
+        storage.register(TestEntity)
 
         create_sql, drop_sql = self._syncdb_sql()
 
@@ -387,23 +314,7 @@ class TestSyncDB(TestSyncDBEmptySchema):
         with conn.transaction() as cursor:
             cursor.execute(create_sql)
 
-        storage.register(pg.Team)
-        storage.unregister(pg.User)
-
-        create_sql, drop_sql = self._syncdb_sql()
-
-        self.assertEqual(create_sql.count('CREATE TABLE'), 1)
-        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 1)
-        self.assertEqual(create_sql.count('CREATE TRIGGER'), 2)
-
-        self.assertEqual(drop_sql.count('DROP TABLE'), 1)
-        self.assertEqual(drop_sql.count('DROP VIEW'), 1)
-
-        with conn.transaction() as cursor:
-            cursor.execute(create_sql)
-            cursor.execute(drop_sql)
-
-        storage.unregister(pg.Team)
+        storage.unregister(TestEntity)
 
         create_sql, drop_sql = self._syncdb_sql()
 
@@ -418,6 +329,19 @@ class TestSyncDB(TestSyncDBEmptySchema):
 
         with conn.transaction() as cursor:
             cursor.execute(drop_sql)
+
+        create_sql, drop_sql = self._syncdb_sql()
+
+        self.assertFalse(drop_sql.strip())
+
+        self.assertEqual(create_sql.count('CREATE TABLE'), 0)
+        self.assertEqual(create_sql.count('CREATE OR REPLACE VIEW'), 0)
+        self.assertEqual(create_sql.count('CREATE TRIGGER'), 0)
+
+        self.assertEqual(drop_sql.count('DROP TABLE'), 0)
+        self.assertEqual(drop_sql.count('DROP VIEW'), 0)
+
+        with conn.transaction() as cursor:
             cursor.execute(
                 'DROP SCHEMA {schema} CASCADE;'.format(schema=self.schema))
 
@@ -430,8 +354,6 @@ class TestSyncDB(TestSyncDBEmptySchema):
 
         self.assertEqual(drop_sql.count('DROP TABLE'), 0)
         self.assertEqual(drop_sql.count('DROP VIEW'), 0)
-
-        self.assertFalse(drop_sql.strip())
 
         conn.close()
 
