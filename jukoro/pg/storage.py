@@ -411,10 +411,11 @@ def _to_drop(state):
 def _syncdb(uri):
 
     schema_name, state = inspect(uri)
-    schema = Schema(schema_name)
 
     if schema_name not in state.schemas:
+        schema = Schema(schema_name)
         yield schema.sql
+
     state.schemas.clear()
     state.sequences.clear()  # TODO
     state.tables.pop(ET)
