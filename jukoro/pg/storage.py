@@ -47,17 +47,23 @@ CREATE SCHEMA {schema};
 
 SET search_path TO {schema};
 
-CREATE SEQUENCE global_entity_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+-- global (per db) id sequence
+DO $$
+BEGIN
+    CREATE SEQUENCE public.global_entity_id_seq
+        START WITH 1
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1;
+EXCEPTION WHEN duplicate_table THEN
+    -- do nothing, it's already there
+END $$;
 
 -- basic entity table (for inheritance)
 CREATE TABLE IF NOT EXISTS "entity" (
     "id" serial PRIMARY KEY,
-    "entity_id" bigint NOT NULL DEFAULT nextval('global_entity_id_seq'),
+    "entity_id" bigint NOT NULL DEFAULT nextval('public.global_entity_id_seq'),
     "entity_start" timestamp with time zone DEFAULT current_timestamp,
     "entity_end" timestamp with time zone
             DEFAULT '2999-12-31 23:59:59.999+0'::timestamp with time zone,
