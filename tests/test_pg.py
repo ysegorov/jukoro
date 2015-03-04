@@ -533,7 +533,7 @@ class TestStorageRegistry(Base):
 
         class C(pg.BaseEntity):
             db_table = 'table_c'
-            auto_register = False
+            skip_registry = True
 
         class D(pg.BaseEntity):
             db_table = 'table_d'
