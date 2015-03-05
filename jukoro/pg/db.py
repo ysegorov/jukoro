@@ -11,6 +11,7 @@ import psycopg2.extensions
 
 from jukoro.structures import LockRing
 
+from jukoro.pg.exceptions import PgPoolClosedError, PgConnectionClosedError
 from jukoro.pg.utils import pg_uri_to_kwargs
 
 
@@ -76,7 +77,7 @@ class PgResult(object):
 class PgTransaction(object):
 
     __slots__ = ('_pg_conn', '_autocommit', '_named', '_cursor', '_failed',
-                 '_result')
+                 '_result', '_closed')
 
     def __init__(self, conn, autocommit=True, named=False):
         if autocommit and named:
@@ -88,6 +89,7 @@ class PgTransaction(object):
         self._cursor = None
         self._failed = False
         self._result = None
+        self._closed = False
 
     def __enter__(self):
         if self._named or not self._autocommit:
@@ -109,13 +111,19 @@ class PgTransaction(object):
                 self._pg_conn.commit()
         self.close()
 
+    @property
+    def is_closed(self):
+        return self._closed
+
     def close(self):
         self._close_result()
         if not (self._failed and self._named):
-            self._cursor.close()
+            if self._cursor is not None:
+                self._cursor.close()
         self._cursor = None
         self._pg_conn.reattach()
         self._pg_conn = None
+        self._closed = True
 
     def _close_result(self):
         if self._result is not None:
@@ -142,7 +150,7 @@ class PgTransaction(object):
 class PgConnection(object):
 
     __slots__ = ('_uri', '_schema', '_pg_pool', '_conn_kwargs', '_conn',
-                 '_autoclose')
+                 '_autoclose', '_closed')
 
     def __init__(self, uri, pool=None, autoclose=False):
         self._uri = uri
@@ -152,6 +160,7 @@ class PgConnection(object):
         self._conn_kwargs = kwargs
         self._conn = None  # psycopg2.connection
         self._autoclose = autoclose
+        self._closed = False
 
         # logger.debug('connection created %s', repr(self))
 
@@ -161,6 +170,8 @@ class PgConnection(object):
 
     @property
     def conn(self):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         if self._conn is None:
             self._conn = _connect(**self._conn_kwargs)
             self._conn.set_session(
@@ -183,22 +194,35 @@ class PgConnection(object):
         self.conn.autocommit = value
 
     @property
+    def is_closed(self):
+        return self._closed
+
+    @property
     def schema(self):
         return self._schema
 
     def commit(self):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         self.conn.commit()
 
     def rollback(self):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         self.conn.rollback()
 
     def close(self):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         if self._conn is not None:
             self._conn.close()
             self._conn = None
         self._pg_pool = None
+        self._closed = True
 
-    def cursor(self, named):
+    def cursor(self, named=False):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         if named:
             return self.conn.cursor(
                 name=str(uuid.uuid4()), scrollable=True, withhold=True)
@@ -211,6 +235,8 @@ class PgConnection(object):
             self.close()
 
     def transaction(self, **kwargs):
+        if self.is_closed:
+            raise PgConnectionClosedError('connection closed')
         return PgTransaction(self, **kwargs)
 
 
@@ -226,6 +252,10 @@ class PgDbPool(object):
         self._warmed_up = False
         self._closed = False
         self._lock = threading.Lock()
+
+    @property
+    def is_closed(self):
+        return self._closed
 
     @property
     def uri(self):
@@ -246,11 +276,13 @@ class PgDbPool(object):
             self._pool.reset()
 
     def transaction(self, **kwargs):
+        if self.is_closed:
+            raise PgPoolClosedError('pool closed')
         with self._lock:
-            conn = self._getconn()
+            conn = self._get_conn()
         return conn.transaction(**kwargs)
 
-    def _getconn(self):
+    def _get_conn(self):
         if not self._warmed_up:
             self._warm_up()
         try:
@@ -275,5 +307,5 @@ class PgDbPool(object):
 
 
 def _connect(**kwargs):
-    return psycopg2.connect(
-        cursor_factory=psycopg2.extras.RealDictCursor, **kwargs)
+    kwargs.setdefault('cursor_factory', psycopg2.extras.RealDictCursor)
+    return psycopg2.connect(**kwargs)

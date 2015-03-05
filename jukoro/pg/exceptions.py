@@ -11,3 +11,11 @@ class PgUriError(PgError):
 
 class PgAlreadyRegisteredError(PgError):
     """ Entity class registered error """
+
+
+class PgPoolClosedError(PgError):
+    """ Pool closed error """
+
+
+class PgConnectionClosedError(PgError):
+    """ Connection closed error """
