@@ -46,19 +46,19 @@ class EntityMeta(type):
 
 class BaseEntity(object):
     __metaclass__ = EntityMeta
-    __slots__ = ('_id', '_data')
+    __slots__ = ('_id', '_doc')
 
-    def __init__(self, entity_id=None, data=None):
+    def __init__(self, entity_id=None, doc=None):
         self._id = entity_id
-        self._data = data or {}
+        self._doc = doc or {}
 
     @property
     def id(self):
         return self._id
 
     @property
-    def data(self):
-        return self._data
+    def doc(self):
+        return self._doc
 
 
 class BaseUser(BaseEntity):

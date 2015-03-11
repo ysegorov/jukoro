@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS "entity" (
     "entity_start" timestamp with time zone DEFAULT current_timestamp,
     "entity_end" timestamp with time zone
             DEFAULT '2999-12-31 23:59:59.999+0'::timestamp with time zone,
-    "data" jsonb NOT NULL
+    "doc" jsonb NOT NULL
 );
 """
 
@@ -79,10 +79,10 @@ CREATE TABLE IF NOT EXISTS "{db_table}" (
     "id" serial PRIMARY KEY
 ) INHERITS ("entity");
 
-CREATE INDEX ju_idx__{db_table}__data ON {db_table}
-    USING GIN("data" jsonb_path_ops);
--- CREATE INDEX ju_idx__{db_table}__data_entity_start_entity_end ON {db_table}
---     USING GIN("data" jsonb_path_ops, "entity_start", "entity_end");
+CREATE INDEX ju_idx__{db_table}__doc ON {db_table}
+    USING GIN("doc" jsonb_path_ops);
+-- CREATE INDEX ju_idx__{db_table}__doc_entity_start_entity_end ON {db_table}
+--     USING GIN("doc" jsonb_path_ops, "entity_start", "entity_end");
 CREATE INDEX ju_idx__{db_table}__entity_id ON "{db_table}"
     USING btree("entity_id", "entity_start", "entity_end" DESC);
 """
@@ -274,7 +274,7 @@ class Index(object):
 
     @property
     def spec(self):
-        spec = '("data"->>\'{attr}\')'
+        spec = '("doc"->>\'{attr}\')'
         if self._attr.is_int:
             spec = '(%s::INTEGER)' % spec
         return spec.format(attr=self._attr.slug)
@@ -293,17 +293,17 @@ class Index(object):
 
 CONSTRAINT_INT = """
 ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
-    CHECK (("data"->>'{attr}') IS NOT NULL
-    AND ("data"->>'{attr}')::INTEGER >= 0);
+    CHECK (("doc"->>'{attr}') IS NOT NULL
+    AND ("doc"->>'{attr}')::INTEGER >= 0);
 """
 CONSTRAINT_TEXT = """
 ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
-    CHECK (("data"->>'{attr}') IS NOT NULL
-    AND length("data"->>'{attr}') > {minlen});
+    CHECK (("doc"->>'{attr}') IS NOT NULL
+    AND length("doc"->>'{attr}') > {minlen});
 """
 CONSTRAINT_NOT_NULL = """
 ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
-    CHECK (("data"->>'{attr}') IS NOT NULL);
+    CHECK (("doc"->>'{attr}') IS NOT NULL);
 """
 
 

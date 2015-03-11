@@ -40,16 +40,16 @@ class AttrDescr(object):
     def __get__(self, instance, owner):
         if instance is None:
             return self
-        val = instance.data.get(self.slug)
+        val = instance.doc.get(self.slug)
         if callable(self._attr.wrapper):
             val = self._attr.wrapper(val)
         return val
 
     def __set__(self, instance, value):
-        instance.data[self.slug] = value
+        instance.doc[self.slug] = value
 
     def __delete__(self, instance):
-        instance.data.pop(self.slug, None)
+        instance.doc.pop(self.slug, None)
 
     def __getattr__(self, name):
         return getattr(self._attr, name)

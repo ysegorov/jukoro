@@ -21,7 +21,7 @@ class TestPgIntrospect(Base):
                         in state.indices)
         self.assertTrue('ju_idx__test_pg__attr2_entity_start_entity_end'
                         in state.indices)
-        self.assertTrue('ju_idx__test_pg__data' in state.indices)
+        self.assertTrue('ju_idx__test_pg__doc' in state.indices)
         self.assertTrue('ju_idx__test_pg__entity_id' in state.indices)
         for idx in xrange(1, 6):
             self.assertTrue('ju_validate__test_pg__attr%s' % idx
