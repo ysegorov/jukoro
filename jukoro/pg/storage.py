@@ -45,6 +45,8 @@ ET = 'entity'  # for internal reference only
 INIT_SCHEMA = """
 CREATE SCHEMA {schema};
 
+-- CREATE EXTENSION IF NOT EXISTS btree_gin;
+
 SET search_path TO {schema};
 
 -- global (per db) id sequence
@@ -76,6 +78,13 @@ CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS "{db_table}" (
     "id" serial PRIMARY KEY
 ) INHERITS ("entity");
+
+CREATE INDEX ju_idx__{db_table}__data ON {db_table}
+    USING GIN("data" jsonb_path_ops);
+-- CREATE INDEX ju_idx__{db_table}__data_entity_start_entity_end ON {db_table}
+--     USING GIN("data" jsonb_path_ops, "entity_start", "entity_end");
+CREATE INDEX ju_idx__{db_table}__entity_id ON "{db_table}"
+    USING btree("entity_id", "entity_start", "entity_end" DESC);
 """
 
 
