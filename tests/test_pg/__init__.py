@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 
 import datetime
+import logging
 import os
 import warnings
 
@@ -16,6 +17,9 @@ from .db import *
 from .introspect import *
 from .storage import *
 from .utils import *
+
+
+logger = logging.getLogger(__name__)
 
 
 URI = os.environ.get('PG_URI', 'postgresql://localhost/jukoro_test')
@@ -49,10 +53,12 @@ def setUp():
 
             kwargs['schema'] = (
                 'ju_%s' % datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+        if not URI.endswith(kwargs['schema']):
             URI += '.%s' % kwargs['schema']
-            SCHEMA = kwargs['schema']
+        SCHEMA = kwargs['schema']
         # create test schema and tables
         sql_create, sql_drop = pg_storage.syncdb(URI)
+        # logger.debug(sql_create)
         assert not sql_drop.strip()
         conn.autocommit = True
         cursor = conn.cursor()

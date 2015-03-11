@@ -52,7 +52,6 @@ class TestSyncDBEmptySchema(Base):
         self.assertEqual(drop_sql.count('DROP VIEW'), 0)
         self.assertEqual(drop_sql.count('DROP INDEX'), 0)
         self.assertEqual(drop_sql.count('DROP CONSTRAINT'), 0)
-        #raise RuntimeError
 
 
 class TestSyncDB(TestSyncDBEmptySchema):
@@ -229,6 +228,8 @@ class TestRegistry(Base):
 
         with self.assertRaises(AttributeError):
             storage.register(A)
+
+        with self.assertRaises(AttributeError):
             storage.register(B)
 
         eclasses = self._entity_classes()
