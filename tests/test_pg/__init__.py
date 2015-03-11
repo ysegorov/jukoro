@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import datetime
 import logging
 import os
+import random
 import warnings
 
 import psycopg2
@@ -28,6 +29,8 @@ BAD_URI = 'postgresq://localhost:5432/jukoro_test.a1'
 
 IS_ONLINE = False
 SCHEMA = 'public'
+FIRST_ID = LAST_ID = None
+MOCK_COUNT = 1000
 
 SQL_TEARDOWN = """
 DROP SCHEMA {schema} CASCADE;
@@ -38,6 +41,7 @@ def setUp():
     global IS_ONLINE
     global URI
     global SCHEMA
+    global FIRST_ID, LAST_ID
     kwargs = pg.pg_uri_to_kwargs(URI)
     try:
         conn = psycopg2.connect(
@@ -63,6 +67,14 @@ def setUp():
         conn.autocommit = True
         cursor = conn.cursor()
         cursor.execute(sql_create)
+
+        query, params = mock_data(MOCK_COUNT)
+        cursor.execute(query, params)
+
+        cursor.execute('SELECT currval(\'public.global_entity_id_seq\');')
+        LAST_ID = cursor.fetchone()[0]
+        FIRST_ID = LAST_ID - MOCK_COUNT + 1
+
         cursor.close()
         conn.close()
 
@@ -86,3 +98,26 @@ def tearDown():
         cursor.execute(SQL_TEARDOWN.format(schema=schema))
         cursor.close()
         conn.close()
+
+
+def mock_data(cnt):
+    random.seed()
+
+    _letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    def _d(attr1, attr3):
+        return {
+            'attr1': random.choice(attr1),
+            'attr2': 'mistery',
+            'attr3': random.choice(attr3),
+            'attr4': random.randint(1, 100),
+            'attr5': random.randint(1000, 100000),
+        }
+
+    attr1 = [''.join(random.sample(_letters, 5)) for __ in xrange(100)]
+    attr3 = [''.join(random.sample(_letters, 7)) for __ in xrange(200)]
+
+    k = ','.join('(%s)' for ___ in xrange(cnt))
+    v = tuple(_d(attr1, attr3) for ___ in xrange(cnt))
+
+    return 'INSERT INTO test_pg ("doc") VALUES {};'.format(k), v

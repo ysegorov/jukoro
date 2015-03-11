@@ -50,6 +50,16 @@ class Base(unittest.TestCase):
         from . import SCHEMA
         return SCHEMA
 
+    @staticmethod
+    def last_id():
+        from . import LAST_ID
+        return LAST_ID
+
+    @staticmethod
+    def first_id():
+        from . import FIRST_ID
+        return FIRST_ID
+
     def setUp(self):
         if self.online_required and not self.is_online():
             self.skipTest('no db available')
