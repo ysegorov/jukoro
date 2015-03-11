@@ -243,11 +243,47 @@ class TestManualCommit(BaseWithPool):
         conn.close()
 
 
-@unittest.skip('TODO')
-class TestRollback(Base):
+class TestRollback(BaseWithPool):
 
     def test_a(self):
-        pass
+
+        eid = self.eid
+
+        with self.pool.transaction(autocommit=False) as cursor:
+            doc = self._get(cursor, eid)[0]
+            doc['attr5'] = -1
+
+            with self.assertRaises(pg.IntegrityError):
+                self._save(cursor, eid, doc)
+
+    def test_b(self):
+
+        uri, schema = self.uri(), self.schema()
+        eid = self.eid
+
+        conn = pg.PgConnection(uri)
+
+        cur1 = conn.transaction(autocommit=False)
+        doc1 = self._get(cur1, eid)[0]
+
+        doc1['attr6'] = int(time.time())
+        self._save(cur1, eid, doc1)
+
+        with self.pool.transaction() as cur2:
+            doc2 = self._get(cur2, eid)[0]
+
+        self.assertNotEqual(doc1, doc2)
+
+        conn.rollback()
+
+        with self.pool.transaction() as cur3:
+            doc3 = self._get(cur3, eid)[0]
+
+        self.assertNotEqual(doc1, doc3)
+        self.assertEqual(doc2, doc3)
+
+        cur1.close()
+        conn.close()
 
 
 @unittest.skip('TODO')

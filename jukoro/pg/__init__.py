@@ -6,6 +6,10 @@ import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 
+from psycopg2 import (
+    Error, DataError, DatabaseError, ProgrammingError, IntegrityError,
+    InterfaceError, InternalError, NotSupportedError, OperationalError)
+
 from jukoro import json
 
 from jukoro.pg.attrs import Attr, AttrDescr
