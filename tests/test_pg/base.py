@@ -98,6 +98,21 @@ class BaseWithPool(Base):
         res = cursor.execute_and_get(q, (eid, ))
         return res['doc'], list(cursor.queries)
 
+    def _cnt(self, cursor, eid, raw=False):
+        nm = 'test_pg'
+        if not raw:
+            nm += '__live'
+        q = 'SELECT COUNT("id") as cnt FROM "{}" ' \
+            'WHERE "entity_id" = %s;'.format(nm)
+        res = cursor.execute_and_get(q, (eid, ))
+        return res['cnt']
+
+    def _count(self, cursor, eid):
+        return self._cnt(cursor, eid)
+
+    def _count_raw(self, cursor, eid):
+        return self._cnt(cursor, eid, raw=True)
+
     def _save(self, cursor, eid, doc):
         cursor.execute(
             'INSERT INTO "test_pg__live" ("entity_id", "doc") '

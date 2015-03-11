@@ -11,7 +11,7 @@ from jukoro import pg
 from .base import Base, BaseWithPool
 
 
-__all__ = ['TestPgPool', 'TestPgConnection', 'TestAutoCommit',
+__all__ = ['TestPgPool', 'TestPgConnection', 'TestHistory', 'TestAutoCommit',
            'TestManualCommit', 'TestRollback', 'TestNamedCursor', 'TestFetch']
 
 
@@ -143,6 +143,27 @@ class TestPgConnection(Base):
         self.assertIsInstance(cursor, pg.PgTransaction)
         cursor.close()
         conn.close()
+
+
+class TestHistory(BaseWithPool):
+
+    def test_history_count(self):
+
+        eid = self.eid
+        cnt = 3
+
+        with self.pool.transaction() as cursor:
+            doc = self._get(cursor, eid)[0]
+            for __ in xrange(cnt):
+                time.sleep(0.125)
+                doc['attr6'] = int(time.time())
+                self._save(cursor, eid, doc)
+
+        with self.pool.transaction() as cursor:
+            count = self._count(cursor, eid)
+            raw_count = self._count_raw(cursor, eid)
+            self.assertEqual(count, 1)
+            self.assertEqual(raw_count, cnt + 1)
 
 
 class TestAutoCommit(BaseWithPool):
