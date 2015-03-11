@@ -286,11 +286,50 @@ class TestRollback(BaseWithPool):
         conn.close()
 
 
-@unittest.skip('TODO')
-class TestNamedCursor(Base):
+class TestNamedCursor(BaseWithPool):
 
     def test_a(self):
-        pass
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        with self.pool.transaction(autocommit=False, named=True) as cursor:
+            cursor.execute(q)
+            queries = ''.join(cursor.queries)
+            self.assertTrue('DECLARE' in queries)
+
+    def test_b(self):
+
+        # test proper cursor close
+        with self.pool.transaction(autocommit=False, named=True):
+            pass
+
+    def test_c(self):
+        uri, schema = self.uri(), self.schema()
+
+        conn = pg.PgConnection(uri)
+
+        cur1 = conn.transaction(autocommit=False, named=True)
+
+        try:
+            cur1.execute('SELECT 1/0;')
+        except pg.DataError:
+            conn.rollback()
+
+        # query not in transaction queries as it failed
+        self.assertFalse('DECLARE' in ''.join(cur1.queries))
+
+        cur1.close()
+        conn.close()
+
+    def test_d(self):
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        with self.pool.transaction(autocommit=False, named=True) as cursor:
+            cursor.execute(q)
+            self.assertTrue('DECLARE' in ''.join(cursor.queries))
+
+            # second execute on named cursor raises ProgrammingError
+            with self.assertRaises(pg.ProgrammingError):
+                cursor.execute('SELECT 1/0;')
 
 
 @unittest.skip('TODO')
@@ -306,4 +345,17 @@ class TestFetch(Base):
         pass
 
     def test_scroll(self):
+        pass
+
+
+@unittest.skip('TODO')
+class TestCallProc(Base):
+
+    def test_a(self):
+        pass
+
+    def test_b(self):
+        pass
+
+    def test_c(self):
         pass

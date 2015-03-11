@@ -80,9 +80,10 @@ class PgTransaction(object):
                  '_result', '_closed', '_queries')
 
     def __init__(self, conn, autocommit=True, named=False):
-        if autocommit and named:
-            warnings.warn(
+        if named and autocommit:
+            logger.warn(
                 'incompatible parameters "autocommit = named = True"')
+            autocommit = False
         self._pg_conn = conn  # instance of PgConnection
         self._autocommit = autocommit
         self._named = named
@@ -126,11 +127,16 @@ class PgTransaction(object):
         for q in self._queries:
             yield q
 
+    def _should_close_cursor(self):
+        if (not self._named and self._cursor is not None) \
+                or (self._named and not self._failed and self._queries):
+            return True
+        return False
+
     def close(self):
         self._close_result()
-        if not (self._failed and self._named):
-            if self._cursor is not None:
-                self._cursor.close()
+        if self._should_close_cursor():
+            self._cursor.close()
         self._cursor = self._queries = None
         self._pg_conn.reattach()
         self._pg_conn = None
@@ -142,20 +148,20 @@ class PgTransaction(object):
             self._result = None
 
     def execute(self, query, params=None):
-        self._ensure_cursor()
-        sql_logger.debug('executing query "%s"', query)
-        self._cursor.execute(query, params)
-        self._queries.append(self._cursor.query)
-        self._close_result()
-        self._result = PgResult(self._cursor)
-        return self._result
+        return self._exec(query, params=params)
 
     def execute_and_get(self, query, params=None):
         return self.execute(query, params).get()
 
     def callproc(self, procname, params=None):
+        return self._exec(procname, params=params, proc=True)
+
+    def _exec(self, q_or_proc, params=None, proc=False):
         self._ensure_cursor()
-        self._cursor.callproc(procname, params)
+        fn = self._cursor.callproc if proc else self._cursor.execute
+        sql_logger.debug(
+            'executing query "%s" with "%s"', q_or_proc, params or [])
+        fn(q_or_proc, params)
         self._queries.append(self._cursor.query)
         self._close_result()
         self._result = PgResult(self._cursor)
