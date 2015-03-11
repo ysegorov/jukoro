@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
 
+import logging
+
+from itertools import count
+
+
+logger = logging.getLogger(__name__)
+
+
+_counter = count()
+
 
 class Attr(object):
     __slots__ = ('db_not_null', 'db_index', 'db_type',
-                 'title', 'maxlen', 'minlen', 'wrapper')
+                 'title', 'maxlen', 'minlen', 'wrapper', '_idx')
 
     def __init__(self, **kwargs):
         self.db_index = kwargs.pop('db_index', False)
@@ -14,6 +24,8 @@ class Attr(object):
         self.minlen = kwargs.pop('minlen', 0)
         self.wrapper = kwargs.pop('wrapper', None)
 
+        self._idx = next(_counter)
+
     @property
     def is_int(self):
         dbt = (self.db_type or 'undef').lower()
@@ -22,6 +34,17 @@ class Attr(object):
     @property
     def is_text(self):
         return self.db_type == 'text'
+
+    @property
+    def idx(self):
+        return self._idx
+
+    def __cmp__(self, other):
+        if isinstance(other, type(self)):
+            return self.idx - other.idx
+        raise RuntimeError(
+            'Unable to compare types "{}" and "{}"'.format(type(self),
+                                                           type(other)))
 
 
 class AttrDescr(object):
@@ -54,15 +77,23 @@ class AttrDescr(object):
     def __getattr__(self, name):
         return getattr(self._attr, name)
 
+    def __cmp__(self, other):
+        return self._attr.__cmp__(other._attr)
+
 
 class AttrsDescr(object):
-    __slots__ = ('_slugs', )
+    __slots__ = ('_slugs', '_sorted')
 
     def __init__(self, *slugs):
         self._slugs = slugs
+        self._sorted = False
 
     def __get__(self, instance, owner):
         target = instance or owner
+        if not self._sorted:
+            self._slugs = sorted(self._slugs,
+                                 key=lambda x: getattr(target, x).idx)
+            self._sorted = True
         for slug in self._slugs:
             yield getattr(target, slug)
 

@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from .base import Base
+import logging
+
+from .base import Base, TestEntity
 
 from jukoro import pg
 from jukoro.pg import storage
 
 
 __all__ = ['TestAttrs']
+
+logger = logging.getLogger(__name__)
 
 
 class TestAttrs(Base):
@@ -60,3 +64,24 @@ class TestAttrs(Base):
         self.assertEqual(self.User.db_table, 'test_user')
         self.assertTrue(hasattr(self.User, 'db_view'))
         self.assertEqual(self.User.db_view, 'test_user__live')
+
+    def test_attr_cmp(self):
+        self.assertTrue(self.User.first_name.idx < self.User.last_name.idx)
+        self.assertTrue(TestEntity.attr1.idx < TestEntity.attr4.idx)
+        self.assertTrue(TestEntity.attr1 < TestEntity.attr4)
+        self.assertTrue(TestEntity.attr6.idx > TestEntity.attr3.idx)
+        self.assertTrue(TestEntity.attr6 > TestEntity.attr3)
+
+    def test_user_attr_ordering(self):
+        prev = None
+        for attr in self.User.attrs:
+            if prev is not None:
+                self.assertTrue(prev.idx < attr.idx)
+            prev = attr
+
+    def test_testentity_attr_ordering(self):
+        prev = None
+        for attr in self.User.attrs:
+            if prev is not None:
+                self.assertTrue(prev.idx < attr.idx)
+            prev = attr
