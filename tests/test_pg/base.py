@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import random
 import unittest
 
 from jukoro import pg
@@ -70,6 +71,10 @@ class BaseWithPool(Base):
     pool_size = 3
     uri_kwargs = None
 
+    def __init__(self, *args, **kwargs):
+        super(BaseWithPool, self).__init__(*args, **kwargs)
+        self._eid = None
+
     @classmethod
     def setUpClass(cls):
         uri = cls.uri()
@@ -80,3 +85,21 @@ class BaseWithPool(Base):
     def tearDownClass(cls):
         cls.pool.close()
         cls.pool = cls.uri_kwargs = None
+
+    @property
+    def eid(self):
+        if self._eid is None:
+            first_id, last_id = self.first_id(), self.last_id()
+            self._eid = random.randint(first_id, last_id)
+        return self._eid
+
+    def _get(self, cursor, eid):
+        q = 'SELECT "doc" FROM "test_pg__live" WHERE "entity_id" = %s;'
+        res = cursor.execute_and_get(q, (eid, ))
+        return res['doc'], list(cursor.queries)
+
+    def _save(self, cursor, eid, doc):
+        cursor.execute(
+            'INSERT INTO "test_pg__live" ("entity_id", "doc") '
+            'VALUES (%s, %s);', (eid, doc))
+        return list(cursor.queries)

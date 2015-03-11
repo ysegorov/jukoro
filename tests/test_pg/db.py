@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import logging
+import time
 import unittest
 
 import psycopg2.extensions
@@ -11,6 +13,9 @@ from .base import Base, BaseWithPool
 
 __all__ = ['TestPgPool', 'TestPgConnection', 'TestAutoCommit',
            'TestManualCommit', 'TestRollback', 'TestNamedCursor', 'TestFetch']
+
+
+logger = logging.getLogger(__name__)
 
 
 class TestPgPool(BaseWithPool):
@@ -140,14 +145,50 @@ class TestPgConnection(Base):
         conn.close()
 
 
-@unittest.skip('TODO')
-class TestAutoCommit(Base):
+class TestAutoCommit(BaseWithPool):
 
     def test_a(self):
-        pass
+
+        eid = self.eid
+
+        with self.pool.transaction() as cur1, self.pool.transaction() as cur2:
+            doc1, queries1 = self._get(cur1, eid)
+
+            self.assertIsInstance(doc1, dict)
+            self.assertEqual(len(queries1), 1)
+
+            doc1['attr6'] = int(time.time())
+            queries1 = self._save(cur1, eid, doc1)
+            self.assertEqual(len(queries1), 2)
+
+            doc2 = self._get(cur2, eid)[0]
+
+            self.assertEqual(doc1.get('attr6'), doc2.get('attr6'))
+            self.assertEqual(doc1, doc2)
 
     def test_b(self):
-        pass
+
+        eid = self.eid
+
+        with self.pool.transaction(autocommit=False) as cur1:
+            with self.pool.transaction() as cur2:
+
+                doc1, queries1 = self._get(cur1, eid)
+
+                doc1['attr6'] = int(time.time())
+                queries1 = self._save(cur1, eid, doc1)
+                self.assertEqual(len(queries1), 2)
+
+                doc2 = self._get(cur2, eid)[0]
+
+                self.assertNotEqual(doc1.get('attr6'), doc2.get('attr6'))
+                self.assertNotEqual(doc1, doc2)
+
+        with self.pool.transaction() as cur3:
+
+            doc3 = self._get(cur3, eid)[0]
+            self.assertEqual(doc1.get('attr6'), doc3.get('attr6'))
+            self.assertEqual(doc1, doc3)
 
 
 @unittest.skip('TODO')
