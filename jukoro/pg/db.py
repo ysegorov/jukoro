@@ -77,7 +77,7 @@ class PgResult(object):
 class PgTransaction(object):
 
     __slots__ = ('_pg_conn', '_autocommit', '_named', '_cursor', '_failed',
-                 '_result', '_closed')
+                 '_result', '_closed', '_queries')
 
     def __init__(self, conn, autocommit=True, named=False):
         if autocommit and named:
@@ -90,6 +90,7 @@ class PgTransaction(object):
         self._failed = False
         self._result = None
         self._closed = False
+        self._queries = []
 
     def __enter__(self):
         if self._named or not self._autocommit:
@@ -115,12 +116,17 @@ class PgTransaction(object):
     def is_closed(self):
         return self._closed
 
+    @property
+    def queries(self):
+        for q in self._queries:
+            yield q
+
     def close(self):
         self._close_result()
         if not (self._failed and self._named):
             if self._cursor is not None:
                 self._cursor.close()
-        self._cursor = None
+        self._cursor = self._queries = None
         self._pg_conn.reattach()
         self._pg_conn = None
         self._closed = True
@@ -133,6 +139,7 @@ class PgTransaction(object):
     def execute(self, query, params=None):
         sql_logger.debug('executing query "%s"', query)
         self._cursor.execute(query, params)
+        self._queries.append(self._cursor.query)
         self._close_result()
         self._result = PgResult(self._cursor)
         return self._result
@@ -142,6 +149,7 @@ class PgTransaction(object):
 
     def callproc(self, procname, params=None):
         self._cursor.callproc(procname, params)
+        self._queries.append(self._cursor.query)
         self._close_result()
         self._result = PgResult(self._cursor)
         return self._result
