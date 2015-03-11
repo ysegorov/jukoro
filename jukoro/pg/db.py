@@ -92,7 +92,9 @@ class PgTransaction(object):
         self._closed = False
         self._queries = []
 
-    def __enter__(self):
+    def _ensure_cursor(self):
+        if self._cursor is not None:
+            return
         if self._named or not self._autocommit:
             if self._pg_conn.autocommit:
                 self._pg_conn.autocommit = False
@@ -100,6 +102,9 @@ class PgTransaction(object):
             if not self._pg_conn.autocommit:
                 self._pg_conn.autocommit = True
         self._cursor = self._pg_conn.cursor(self._named)
+
+    def __enter__(self):
+        self._ensure_cursor()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -137,6 +142,7 @@ class PgTransaction(object):
             self._result = None
 
     def execute(self, query, params=None):
+        self._ensure_cursor()
         sql_logger.debug('executing query "%s"', query)
         self._cursor.execute(query, params)
         self._queries.append(self._cursor.query)
@@ -148,6 +154,7 @@ class PgTransaction(object):
         return self.execute(query, params).get()
 
     def callproc(self, procname, params=None):
+        self._ensure_cursor()
         self._cursor.callproc(procname, params)
         self._queries.append(self._cursor.query)
         self._close_result()

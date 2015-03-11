@@ -212,11 +212,35 @@ class TestAutoCommit(BaseWithPool):
             self.assertEqual(doc1, doc3)
 
 
-@unittest.skip('TODO')
-class TestManualCommit(Base):
+class TestManualCommit(BaseWithPool):
 
     def test_a(self):
-        pass
+
+        uri, schema = self.uri(), self.schema()
+        eid = self.eid
+
+        conn = pg.PgConnection(uri)
+
+        cur1 = conn.transaction(autocommit=False)
+        doc1 = self._get(cur1, eid)[0]
+
+        doc1['attr6'] = int(time.time())
+        self._save(cur1, eid, doc1)
+
+        with self.pool.transaction() as cur2:
+            doc2 = self._get(cur2, eid)[0]
+
+        self.assertNotEqual(doc1, doc2)
+
+        conn.commit()
+
+        with self.pool.transaction() as cur3:
+            doc3 = self._get(cur3, eid)[0]
+
+        self.assertEqual(doc1, doc3)
+
+        cur1.close()
+        conn.close()
 
 
 @unittest.skip('TODO')
