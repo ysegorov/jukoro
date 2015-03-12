@@ -19,3 +19,11 @@ class PgPoolClosedError(PgError):
 
 class PgConnectionClosedError(PgError):
     """ Connection closed error """
+
+
+class PgCursorClosedError(PgError):
+    """ Cursor closed error """
+
+
+class PgDoesNotExistError(PgError):
+    """ Query returned nothing error """

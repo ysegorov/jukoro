@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import division
+
 import logging
+import random
 import time
 import unittest
 
@@ -12,7 +15,8 @@ from .base import Base, BaseWithPool
 
 
 __all__ = ['TestPgPool', 'TestPgConnection', 'TestHistory', 'TestAutoCommit',
-           'TestManualCommit', 'TestRollback', 'TestNamedCursor', 'TestFetch']
+           'TestManualCommit', 'TestRollback', 'TestNamedCursor', 'TestFetch',
+           'TestCallProc']
 
 
 logger = logging.getLogger(__name__)
@@ -95,6 +99,9 @@ class TestPgConnection(Base):
         conn = pg.PgConnection(uri, autoclose=True)
         with conn.transaction():
             pass
+
+        with self.assertRaises(pg.PgConnectionClosedError):
+            conn.autocommit = True
 
         with self.assertRaises(pg.PgConnectionClosedError):
             conn.commit()
@@ -331,21 +338,140 @@ class TestNamedCursor(BaseWithPool):
             with self.assertRaises(pg.ProgrammingError):
                 cursor.execute('SELECT 1/0;')
 
+    def test_e(self):
+        # test for named cursor fetched data slicing
+        # check postgresql logs for actual queries
+        # TODO real test
+        random.seed()
 
-@unittest.skip('TODO')
-class TestFetch(Base):
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        cnt = 0
+        with self.pool.transaction(autocommit=False,
+                                   named=True, block_size=100) as cursor:
+            res = cursor.execute(q)
+
+            self.assertEqual(res.rowcount, -1)
+
+            for row in res:
+                cnt += 1
+
+        half = int(cnt / 2)
+        p1, p2 = random.randint(10, half), random.randint(half, cnt)
+        p3, p4 = random.randint(10, half), random.randint(half, cnt)
+        if p3 > p1:
+            (p1, p2), (p3, p4) = (p3, p4), (p1, p2)
+        elif p3 == p1:
+            p3 -= 5
+
+        self.assertTrue(p1 > p3)
+
+        with self.pool.transaction(autocommit=False,
+                                   named=True, block_size=100) as cursor:
+            res = cursor.execute(q)
+            res[p1:p2]
+            res[p3:p4]
+
+            with self.assertRaises(ValueError):
+                res[cnt + 2:]
+
+            res[cnt + 1000:cnt + 1200]
+            res[p1:p2]
+
+
+class TestFetch(BaseWithPool):
 
     def test_fetch_one(self):
-        pass
+        eid = self.eid
+
+        q = 'SELECT "entity_id", "doc" from "test_pg__live" ' \
+            'WHERE "entity_id" = %s;'
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q, (eid, ))
+
+            self.assertIsInstance(res, pg.PgResult)
+            self.assertTrue(len(res) == 1)
+
+            r1 = res.get()
+            r2 = res.get()
+
+        self.assertEqual(r1, r2)
+        self.assertEqual(r1['entity_id'], eid)
+        self.assertTrue(res.is_closed)
+
+        with self.assertRaises(pg.PgCursorClosedError):
+            res.get()
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q, (-1, ))
+
+            self.assertTrue(len(res) == 0)
+
+            with self.assertRaises(pg.PgDoesNotExistError):
+                res.get()
 
     def test_fetch_all(self):
-        pass
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q)
+
+            self.assertIsInstance(res, pg.PgResult)
+
+            rows1 = res.all()
+            rows2 = res.all()
+            self.assertEqual(len(res), len(rows1))
+            self.assertEqual(len(rows2), 0)
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q)
+
+        with self.assertRaises(pg.PgCursorClosedError):
+            res.all()
 
     def test_fetch_many(self):
-        pass
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        bs = 75
+        with self.pool.transaction(block_size=bs) as cursor:
+            res = cursor.execute(q)
+
+            cnt, data = 0, []
+            block = res.block()
+            while block:
+                cnt += len(block)
+                data.extend(block)
+                self.assertTrue(len(block) <= bs)
+                block = res.block()
+
+            rows = res.all()
+            self.assertTrue(len(rows) == 0)
+
+            half = int(cnt / 2)
+            res.scroll(0)
+            rows = set(x['entity_id'] for x in res[:half])
+            data = set(x['entity_id'] for x in data)
+            self.assertTrue(len(rows) == half)
+            self.assertTrue(set(data).issuperset(set(rows)))
 
     def test_scroll(self):
-        pass
+
+        q = 'SELECT "entity_id", "doc" from "test_pg__live";'
+
+        cnt, bs = 0, 75
+        with self.pool.transaction(block_size=bs) as cursor:
+            res = cursor.execute(q)
+
+            for __ in res:
+                cnt += 1
+
+            res.scroll(0)
+            res.scroll(int(cnt / 2))
+            with self.assertRaises(pg.PgDoesNotExistError):
+                res.scroll(-1)
+            with self.assertRaises(pg.PgDoesNotExistError):
+                res.scroll(cnt)
 
 
 @unittest.skip('TODO')

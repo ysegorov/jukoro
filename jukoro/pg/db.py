@@ -3,47 +3,82 @@
 import logging
 import threading
 import uuid
-import warnings
 
 import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
 
+from jukoro.decorators import raise_if
 from jukoro.structures import LockRing
 
-from jukoro.pg.exceptions import PgPoolClosedError, PgConnectionClosedError
+from jukoro.pg.exceptions import (
+    PgPoolClosedError, PgConnectionClosedError, PgCursorClosedError,
+    PgDoesNotExistError)
 from jukoro.pg.utils import pg_uri_to_kwargs
 
+
+BLOCK_SIZE = 2048
 
 logger = logging.getLogger(__name__)
 sql_logger = logging.getLogger('jukoro.pg.sql')
 
 
+def is_closed(inst, *args, **kwargs):
+    return getattr(inst, 'is_closed', False)
+
+
+raise_if_cursor_closed = raise_if(PgCursorClosedError,
+                                  'cursor closed', is_closed)
+raise_if_connection_closed = raise_if(PgConnectionClosedError,
+                                      'connection closed', is_closed)
+raise_if_pool_closed = raise_if(PgPoolClosedError,
+                                'pool closed', is_closed)
+
+
 class PgResult(object):
 
-    __slots__ = ('_cursor', '_block_size')
+    __slots__ = ('_cursor', )
 
-    def __init__(self, cursor, block_size=2048):
+    def __init__(self, cursor):
         self._cursor = cursor
-        self._block_size = block_size
 
+    @property
+    def is_closed(self):
+        return self._cursor is None
+
+    @raise_if_cursor_closed
     def get(self):
-        return self[0]
+        try:
+            return self[0]
+        except psycopg2.ProgrammingError:
+            raise PgDoesNotExistError
 
+    @raise_if_cursor_closed
     def all(self):
         return self._cursor.fetchall()
 
-    def _block(self):
-        return self._cursor.fetchmany(self._block_size)
+    @raise_if_cursor_closed
+    def block(self):
+        return self._cursor.fetchmany()
 
     def __iter__(self):
-        block = self._block()
+        # named cursor will transparently work the same way the client-side
+        # cursor does
+        block = self.block()
         while block:
             for it in block:
                 yield it
-            block = self._block()
+            block = self.block()
 
+    @property
+    @raise_if_cursor_closed
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @raise_if_cursor_closed
     def __len__(self):
+        if self._cursor.name is not None:
+            return 0
         return self._cursor.rowcount
 
     def __getitem__(self, value):
@@ -54,32 +89,33 @@ class PgResult(object):
                 return resp
             return
         if isinstance(value, slice):
-            start = value.start
-            stop = value.stop
-            step = value.step
             # TODO raise for negative positions
+            start = value.start or 0
+            stop = value.stop
+            if stop is None:
+                raise ValueError('undefined value for upper boundary')
             # TODO respect step
+            # step = value.step
             self.scroll(start)
             return self._cursor.fetchmany(stop - start)
 
     def close(self):
         self._cursor = None
 
+    @raise_if_cursor_closed
     def scroll(self, pos):
-        # TODO raise for out-of-bounds?
-        if pos >= len(self):
-            pos = len(self) - 1
-        if pos < 0:
-            pos = 0
-        self._cursor.scroll(pos, 'absolute')
+        try:
+            self._cursor.scroll(pos, 'absolute')
+        except (psycopg2.ProgrammingError, IndexError):
+            raise PgDoesNotExistError
 
 
 class PgTransaction(object):
 
     __slots__ = ('_pg_conn', '_autocommit', '_named', '_cursor', '_failed',
-                 '_result', '_closed', '_queries')
+                 '_result', '_closed', '_queries', '_block_size')
 
-    def __init__(self, conn, autocommit=True, named=False):
+    def __init__(self, conn, autocommit=True, named=False, **kwargs):
         if named and autocommit:
             logger.warn(
                 'incompatible parameters "autocommit = named = True"')
@@ -92,6 +128,7 @@ class PgTransaction(object):
         self._result = None
         self._closed = False
         self._queries = []
+        self._block_size = kwargs.get('block_size', BLOCK_SIZE)
 
     def _ensure_cursor(self):
         if self._cursor is not None:
@@ -103,6 +140,9 @@ class PgTransaction(object):
             if not self._pg_conn.autocommit:
                 self._pg_conn.autocommit = True
         self._cursor = self._pg_conn.cursor(self._named)
+        self._cursor.arraysize = self._block_size
+        if self._named:
+            self._cursor.itersize = self._block_size
 
     def __enter__(self):
         self._ensure_cursor()
@@ -117,6 +157,20 @@ class PgTransaction(object):
             if self._named or not self._autocommit:
                 self._pg_conn.commit()
         self.close()
+
+    @property
+    def block_size(self):
+        return self._block_size
+
+    @property
+    def arraysize(self):
+        self._ensure_cursor()
+        return self._cursor.arraysize
+
+    @property
+    def itersize(self):
+        self._ensure_cursor()
+        return self._cursor.itersize
 
     @property
     def is_closed(self):
@@ -190,9 +244,8 @@ class PgConnection(object):
                                                        hex(id(self)))
 
     @property
+    @raise_if_connection_closed
     def conn(self):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         if self._conn is None:
             self._conn = _connect(**self._conn_kwargs)
             self._conn.set_session(
@@ -222,42 +275,38 @@ class PgConnection(object):
     def schema(self):
         return self._schema
 
+    @raise_if_connection_closed
     def commit(self):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         self.conn.commit()
 
+    @raise_if_connection_closed
     def rollback(self):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         self.conn.rollback()
 
+    @raise_if_connection_closed
     def close(self):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         if self._conn is not None:
             self._conn.close()
             self._conn = None
         self._pg_pool = None
         self._closed = True
 
+    @raise_if_connection_closed
     def cursor(self, named=False):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         if named:
             return self.conn.cursor(
                 name=str(uuid.uuid4()), scrollable=True, withhold=True)
         return self.conn.cursor()
 
+    @raise_if_connection_closed
     def reattach(self):
         if self._pg_pool is not None:
             self._pg_pool.unlock(self)
         elif self._autoclose:
             self.close()
 
+    @raise_if_connection_closed
     def transaction(self, **kwargs):
-        if self.is_closed:
-            raise PgConnectionClosedError('connection closed')
         return PgTransaction(self, **kwargs)
 
 
@@ -296,9 +345,8 @@ class PgDbPool(object):
             self._closed = True
             self._pool.reset()
 
+    @raise_if_pool_closed
     def transaction(self, **kwargs):
-        if self.is_closed:
-            raise PgPoolClosedError('pool closed')
         with self._lock:
             conn = self._get_conn()
         return conn.transaction(**kwargs)
@@ -316,6 +364,7 @@ class PgDbPool(object):
     def _new_conn(self, **kwargs):
         return PgConnection(self._uri, **kwargs)
 
+    @raise_if_pool_closed
     def unlock(self, conn):
         self._pool.push(conn)
 
