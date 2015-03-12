@@ -62,3 +62,25 @@ class memoize(object):
         except KeyError:
             self._cache[k] = res = self._fn(*args, **kwargs)
             return res
+
+
+class raise_if(object):
+    __slots__ = ('_exc_type', '_msg', '_test_fn')
+
+    def __init__(self, exc_type, msg, test_fn):
+        self._exc_type = exc_type
+        self._msg = msg
+        self._test_fn = test_fn
+
+    def __call__(self, fn):
+        test_fn = self._test_fn
+        exc_type = self._exc_type
+        msg = self._msg
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            if test_fn(*args, **kwargs):
+                raise exc_type(msg)
+            return fn(*args, **kwargs)
+
+        return wrapper
