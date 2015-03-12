@@ -19,6 +19,7 @@ from jukoro.pg.exceptions import (
     PgError, PgUriError, PgAlreadyRegisteredError, PgPoolClosedError,
     PgConnectionClosedError, PgCursorClosedError, PgDoesNotExistError)
 from jukoro.pg.introspect import inspect
+from jukoro.pg.query import QueryEntity, QueryEntityClass, QueryDescr
 from jukoro.pg.utils import pg_uri_to_kwargs
 
 

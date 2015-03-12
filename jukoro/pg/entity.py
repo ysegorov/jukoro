@@ -3,6 +3,7 @@
 import logging
 
 from jukoro.pg.attrs import Attr, AttrDescr, AttrsDescr
+from jukoro.pg.query import QueryDescr
 from jukoro.pg import storage
 
 
@@ -48,6 +49,8 @@ class BaseEntity(object):
     __metaclass__ = EntityMeta
     __slots__ = ('_id', '_doc')
 
+    sql = QueryDescr('db_view')
+
     def __init__(self, entity_id=None, doc=None):
         self._id = entity_id
         self._doc = doc or {}
@@ -59,6 +62,29 @@ class BaseEntity(object):
     @property
     def doc(self):
         return self._doc
+
+    @staticmethod
+    def db_fields():
+        return ('entity_id', 'doc')
+
+    @property
+    def db_values(self):
+        return (self.id, self.doc)
+
+    def update(self, **kwargs):
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+
+    @classmethod
+    def by_id(cls, entity_id, cursor):
+        q, params = cls.sql.by_id(entity_id)
+        res = cursor.execute_and_get(q, params)
+        return cls(**res)
+
+    def save(self, cursor):
+        q, params = self.sql.save()
+        res = cursor.execute_and_get(q, params)
+        return type(self)(**res)
 
 
 class BaseUser(BaseEntity):
