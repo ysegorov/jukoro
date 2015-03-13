@@ -1,26 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-class QueryEntity(object):
-
-    def __init__(self, entity, db_target):
-        self._entity = entity
-        self._target = db_target
-
-    def save(self):
-        entity, target = self._entity, self._target
-        fields = entity.db_fields()
-        eid, doc = entity.db_values
-        q = 'INSERT INTO "{target}" ("{fields}") VALUES ({placeholders}) ' \
-            'RETURNING "{fields}";'
-        fields = '","'.join(fields)
-        placeholders = '%s, %s' if eid else 'DEFAULT, %s'
-        params = (eid, doc) if eid else (doc,)
-        q = q.format(target=target, fields=fields, placeholders=placeholders)
-        return (q, params)
-
-
-class QueryEntityClass(object):
+class QueryBuilder(object):
 
     def __init__(self, klass, db_target):
         self._klass = klass
@@ -35,21 +16,35 @@ class QueryEntityClass(object):
         q = q.format(target=target, fields=fields)
         return (q, (entity_id, ))
 
+    def save(self, entity):
+        target = self._target
+        fields = entity.db_fields()
+        eid, doc = entity.db_values
+        q = 'INSERT INTO "{target}" ("{fields}") VALUES ({placeholders}) ' \
+            'RETURNING "{fields}";'
+        fields = '","'.join(fields)
+        placeholders = '%s, %s' if eid else 'DEFAULT, %s'
+        params = (eid, doc) if eid else (doc,)
+        q = q.format(target=target, fields=fields, placeholders=placeholders)
+        return (q, params)
 
-class QueryDescr(object):
 
-    def __init__(self, db_target, db_fields=None):
+class QueryBuilderDescr(object):
+
+    def __init__(self, db_target):
         self._target = db_target
 
     def __get__(self, instance, owner):
+        if instance is not None:
+            raise AttributeError(
+                'This is a "{}" class attribute, not an instance one'.format(
+                    owner.__name__))
         db_target = getattr(owner, self._target, None)
         if not db_target:
             raise AttributeError(
                 'Class "{}" must have "{}" attribute defined'.format(
                     owner.__name__, self._target))
-        if instance is None:
-            return QueryEntityClass(owner, db_target)
-        return QueryEntity(instance, db_target)
+        return QueryBuilder(owner, db_target)
 
     def __set__(self, instance, value):
         raise AttributeError

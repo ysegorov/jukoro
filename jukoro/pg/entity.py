@@ -3,7 +3,7 @@
 import logging
 
 from jukoro.pg.attrs import Attr, AttrDescr, AttrsDescr
-from jukoro.pg.query import QueryDescr
+from jukoro.pg.query import QueryBuilderDescr
 from jukoro.pg import storage
 
 
@@ -31,6 +31,9 @@ class EntityMeta(type):
             dct['db_table'] = storage.DBTableName(tn)
             dct['db_view'] = storage.DBViewName(tn)
 
+            if 'qbuilder' not in dct:
+                dct['qbuilder'] = QueryBuilderDescr('db_view')
+
         own_slugs = [k for (k, v) in dct.iteritems() if isinstance(v, Attr)]
         attrs.extend(own_slugs)
         [attrs.extend(x) for x in map(_slugs, bases)]
@@ -49,7 +52,7 @@ class BaseEntity(object):
     __metaclass__ = EntityMeta
     __slots__ = ('_id', '_doc')
 
-    sql = QueryDescr('db_view')
+    qbuilder = None
 
     def __init__(self, entity_id=None, doc=None):
         self._id = entity_id
@@ -76,15 +79,16 @@ class BaseEntity(object):
             setattr(self, k, v)
 
     @classmethod
-    def by_id(cls, entity_id, cursor):
-        q, params = cls.sql.by_id(entity_id)
+    def by_id(cls, cursor, entity_id):
+        q, params = cls.qbuilder.by_id(entity_id)
         res = cursor.execute_and_get(q, params)
         return cls(**res)
 
     def save(self, cursor):
-        q, params = self.sql.save()
+        klass = type(self)
+        q, params = klass.qbuilder.save(self)
         res = cursor.execute_and_get(q, params)
-        return type(self)(**res)
+        return klass(**res)
 
 
 class BaseUser(BaseEntity):

@@ -7,32 +7,33 @@ from .base import TestEntity, Base, BaseWithPool
 from jukoro import pg
 
 
-__all__ = ['TestQueryDescr', 'TestQueryEntity', 'TestQueryEntityClass']
+__all__ = ['TestQueryBuilderDescr', 'TestQueryBuilder']
 
 
 logger = logging.getLogger(__name__)
 
 
-class TestQueryDescr(Base):
+class TestQueryBuilderDescr(Base):
 
     def test_a(self):
-        q = TestEntity.sql
-        self.assertIsInstance(q, pg.QueryEntityClass)
+        q = TestEntity.qbuilder
+        self.assertIsInstance(q, pg.QueryBuilder)
 
         with self.assertRaises(AttributeError):
-            pg.BaseEntity.sql
+            pg.BaseEntity.qbuilder.by_id
 
-        q = TestEntity().sql
-        self.assertIsInstance(q, pg.QueryEntity)
+        a = TestEntity()
+        with self.assertRaises(AttributeError):
+            a.qbuilder
 
 
-class TestQueryEntity(BaseWithPool):
+class TestQueryBuilder(BaseWithPool):
 
     def test_save(self):
         last_id = self.last_id()
 
         a = TestEntity()
-        q, params = a.sql.save()
+        q, params = TestEntity.qbuilder.save(a)
 
         with self.pool.transaction() as cursor:
             with self.assertRaises(pg.IntegrityError):
@@ -40,7 +41,7 @@ class TestQueryEntity(BaseWithPool):
 
             a.update(attr1='miracle', attr2='musician',
                      attr3='boundary', attr4=5, attr5=26)
-            q, params = a.sql.save()
+            q, params = TestEntity.qbuilder.save(a)
             self.assertTrue(len(params) == 1)
 
             res = cursor.execute(q, params)
@@ -62,22 +63,19 @@ class TestQueryEntity(BaseWithPool):
             self.assertEqual(b.id, c.id)
             self.assertEqual(b.attr1, c.attr1)
 
-
-class TestQueryEntityClass(BaseWithPool):
-
     def test_by_id(self):
         first_id, last_id = self.first_id(), self.last_id()
 
         with self.assertRaises(ValueError):
-            TestEntity.sql.by_id(None)
+            TestEntity.qbuilder.by_id(None)
 
         with self.pool.transaction() as cursor:
-            q, params = TestEntity.sql.by_id(last_id)
+            q, params = TestEntity.qbuilder.by_id(last_id)
             res = cursor.execute_and_get(q, params)
             a = TestEntity(**res)
 
             self.assertEqual(a.id, last_id)
 
-            b = TestEntity.by_id(first_id, cursor)
+            b = TestEntity.by_id(cursor, first_id)
             self.assertIsInstance(b, TestEntity)
             self.assertEqual(b.id, first_id)
