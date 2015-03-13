@@ -19,10 +19,6 @@ class QueryEntity(object):
         q = q.format(target=target, fields=fields, placeholders=placeholders)
         return (q, params)
 
-    def get(self):
-        entity = self._entity
-        return type(entity).sql.by_id(entity.id)
-
 
 class QueryEntityClass(object):
 

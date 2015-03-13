@@ -62,21 +62,6 @@ class TestQueryEntity(BaseWithPool):
             self.assertEqual(b.id, c.id)
             self.assertEqual(b.attr1, c.attr1)
 
-    def test_get(self):
-        last_id = self.last_id()
-
-        with self.assertRaises(ValueError):
-            TestEntity().sql.get()
-
-        a = TestEntity(last_id)
-        q, params = a.sql.get()
-
-        with self.pool.transaction() as cursor:
-            res = cursor.execute_and_get(q, params)
-            b = TestEntity(**res)
-
-        self.assertEqual(a.id, b.id)
-
 
 class TestQueryEntityClass(BaseWithPool):
 
