@@ -353,6 +353,10 @@ class DBTableName(object):
     def __set__(self, instance):
         raise AttributeError
 
+    @property
+    def name(self):
+        return self._nm
+
 
 class DBViewName(DBTableName):
     suffix = '__live'

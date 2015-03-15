@@ -31,8 +31,8 @@ class QueryBuilder(object):
 
 class QueryBuilderDescr(object):
 
-    def __init__(self, db_target, query_builder=None):
-        self._target = db_target
+    def __init__(self, db_target_name, query_builder=None):
+        self._target_name = db_target_name
         self._qb = query_builder or QueryBuilder
 
     def __get__(self, instance, owner):
@@ -40,12 +40,7 @@ class QueryBuilderDescr(object):
             raise AttributeError(
                 'This is a "{}" class attribute, not an instance one'.format(
                     owner.__name__))
-        db_target = getattr(owner, self._target, None)
-        if not db_target:
-            raise AttributeError(
-                'Class "{}" must have "{}" attribute defined'.format(
-                    owner.__name__, self._target))
-        return self._qb(owner, db_target)
+        return self._qb(owner, self._target_name)
 
     def __set__(self, instance, value):
         raise AttributeError

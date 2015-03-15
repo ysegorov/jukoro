@@ -8,8 +8,22 @@ from jukoro import pg
 from jukoro.pg import storage
 
 
-__all__ = ['TestSyncDBEmptySchema', 'TestSyncDB', 'TestSqlDescr',
-           'TestBaseSql', 'TestRegistry']
+__all__ = ['TestDBTableName', 'TestDBViewName', 'TestSyncDBEmptySchema',
+           'TestSyncDB', 'TestSqlDescr', 'TestBaseSql', 'TestRegistry']
+
+
+class TestDBTableName(Base):
+
+    def test(self):
+        tn = storage.DBTableName('test_pg')
+        self.assertEqual(tn.name, 'test_pg')
+
+
+class TestDBViewName(Base):
+
+    def test(self):
+        vn = storage.DBViewName('test_pg')
+        self.assertEqual(vn.name, 'test_pg__live')
 
 
 class TestSyncDBEmptySchema(Base):

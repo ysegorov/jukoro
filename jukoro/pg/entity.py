@@ -29,10 +29,10 @@ class EntityMeta(type):
                 raise AttributeError(
                     '"entity" table name is reserved, take another one')
             dct['db_table'] = storage.DBTableName(tn)
-            dct['db_view'] = storage.DBViewName(tn)
+            dct['db_view'] = db_view = storage.DBViewName(tn)
 
             if 'qbuilder' not in dct:
-                dct['qbuilder'] = QueryBuilderDescr('db_view')
+                dct['qbuilder'] = QueryBuilderDescr(db_view.name)
 
         own_slugs = [k for (k, v) in dct.iteritems() if isinstance(v, Attr)]
         attrs.extend(own_slugs)
