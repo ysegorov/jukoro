@@ -47,8 +47,8 @@ class TestQueryBuilder(BaseWithPool):
             res = cursor.execute(q, params)
             b = TestEntity(**res.get())
 
-            self.assertIsNot(b.id, None)
-            self.assertTrue(b.id > last_id)
+            self.assertIsNot(b.eid, None)
+            self.assertTrue(b.eid > last_id)
             self.assertEqual(a.doc, b.doc)
             self.assertEqual(b.attr1, 'miracle')
             self.assertEqual(b.attr2, 'musician')
@@ -60,7 +60,7 @@ class TestQueryBuilder(BaseWithPool):
             c = b.save(cursor)
             self.assertIsNot(b, c)
             self.assertEqual(c.attr4, 45)
-            self.assertEqual(b.id, c.id)
+            self.assertEqual(b.eid, c.eid)
             self.assertEqual(b.attr1, c.attr1)
 
     def test_by_id(self):
@@ -74,8 +74,8 @@ class TestQueryBuilder(BaseWithPool):
             res = cursor.execute_and_get(q, params)
             a = TestEntity(**res)
 
-            self.assertEqual(a.id, last_id)
+            self.assertEqual(a.eid, last_id)
 
             b = TestEntity.by_id(cursor, first_id)
             self.assertIsInstance(b, TestEntity)
-            self.assertEqual(b.id, first_id)
+            self.assertEqual(b.eid, first_id)

@@ -50,17 +50,17 @@ class EntityMeta(type):
 
 class BaseEntity(object):
     __metaclass__ = EntityMeta
-    __slots__ = ('_id', '_doc')
+    __slots__ = ('_eid', '_doc')
 
     qbuilder = None
 
     def __init__(self, entity_id=None, doc=None):
-        self._id = entity_id
+        self._eid = entity_id
         self._doc = doc or {}
 
     @property
-    def id(self):
-        return self._id
+    def eid(self):
+        return self._eid
 
     @property
     def doc(self):
@@ -72,15 +72,15 @@ class BaseEntity(object):
 
     @property
     def db_values(self):
-        return (self.id, self.doc)
+        return (self.eid, self.doc)
 
     def update(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
     @classmethod
-    def by_id(cls, cursor, entity_id):
-        q, params = cls.qbuilder.by_id(entity_id)
+    def by_id(cls, cursor, eid):
+        q, params = cls.qbuilder.by_id(eid)
         res = cursor.execute_and_get(q, params)
         return cls(**res)
 
