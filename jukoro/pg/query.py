@@ -8,24 +8,27 @@ class QueryBuilder(object):
         self._target = db_target
         self._fields = db_fields
 
+    @property
+    def fields(self):
+        return '","'.join(self._fields)
+
     def by_id(self, entity_id):
         if not entity_id:
             raise ValueError('"entity_id" must be defined to get instance')
         klass, target = self._klass, self._target
-        fields = '","'.join(self._fields)
         q = 'SELECT "{fields}" FROM "{target}" WHERE "entity_id" = %s;'
-        q = q.format(target=target, fields=fields)
+        q = q.format(target=target, fields=self.fields)
         return (q, (entity_id, ))
 
     def save(self, entity):
-        target, fields = self._target, self._fields
+        target = self._target
         entity_id, doc = entity.db_values
         q = 'INSERT INTO "{target}" ("{fields}") VALUES ({placeholders}) ' \
             'RETURNING "{fields}";'
-        fields = '","'.join(fields)
         placeholders = '%s, %s' if entity_id else 'DEFAULT, %s'
         params = (entity_id, doc) if entity_id else (doc,)
-        q = q.format(target=target, fields=fields, placeholders=placeholders)
+        q = q.format(target=target,
+                     fields=self.fields, placeholders=placeholders)
         return (q, params)
 
 
