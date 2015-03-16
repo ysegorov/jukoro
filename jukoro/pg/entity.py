@@ -32,7 +32,8 @@ class EntityMeta(type):
             dct['db_view'] = db_view = storage.DBViewName(tn)
 
             if 'qbuilder' not in dct:
-                dct['qbuilder'] = QueryBuilderDescr(db_view.name)
+                dct['qbuilder'] = QueryBuilderDescr(db_view.name,
+                                                    db_view.fields)
 
         own_slugs = [k for (k, v) in dct.iteritems() if isinstance(v, Attr)]
         attrs.extend(own_slugs)
@@ -65,10 +66,6 @@ class BaseEntity(object):
     @property
     def doc(self):
         return self._doc
-
-    @staticmethod
-    def db_fields():
-        return ('entity_id', 'doc')
 
     @property
     def db_values(self):
