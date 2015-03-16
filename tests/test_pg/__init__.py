@@ -15,6 +15,7 @@ from jukoro.pg import storage as pg_storage
 
 from .attrs import *
 from .db import *
+from .entity import *
 from .introspect import *
 from .query import *
 from .storage import *

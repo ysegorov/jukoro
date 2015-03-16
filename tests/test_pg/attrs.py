@@ -56,15 +56,6 @@ class TestAttrs(Base):
         u_attrs = set(self.User.attrs)
         self.assertTrue(u_attrs.issuperset(bu_attrs))
 
-    def test_db_table_attr(self):
-        self.assertFalse(hasattr(pg.BaseUser, 'db_table'))
-        self.assertFalse(hasattr(pg.BaseUser, 'db_view'))
-
-        self.assertTrue(hasattr(self.User, 'db_table'))
-        self.assertEqual(self.User.db_table.name, 'test_user')
-        self.assertTrue(hasattr(self.User, 'db_view'))
-        self.assertEqual(self.User.db_view.name, 'test_user__live')
-
     def test_attr_cmp(self):
         self.assertTrue(self.User.first_name.idx < self.User.last_name.idx)
         self.assertTrue(TestEntity.attr1.idx < TestEntity.attr4.idx)
