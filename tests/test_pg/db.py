@@ -156,19 +156,19 @@ class TestHistory(BaseWithPool):
 
     def test_history_count(self):
 
-        eid = self.eid
+        entity_id = self.entity_id
         cnt = 3
 
         with self.pool.transaction() as cursor:
-            doc = self._get(cursor, eid)[0]
+            doc = self._get(cursor, entity_id)[0]
             for __ in xrange(cnt):
                 time.sleep(0.125)
                 doc['attr6'] = int(time.time())
-                self._save(cursor, eid, doc)
+                self._save(cursor, entity_id, doc)
 
         with self.pool.transaction() as cursor:
-            count = self._count(cursor, eid)
-            raw_count = self._count_raw(cursor, eid)
+            count = self._count(cursor, entity_id)
+            raw_count = self._count_raw(cursor, entity_id)
             self.assertEqual(count, 1)
             self.assertEqual(raw_count, cnt + 1)
 
@@ -177,44 +177,44 @@ class TestAutoCommit(BaseWithPool):
 
     def test_a(self):
 
-        eid = self.eid
+        entity_id = self.entity_id
 
         with self.pool.transaction() as cur1, self.pool.transaction() as cur2:
-            doc1, queries1 = self._get(cur1, eid)
+            doc1, queries1 = self._get(cur1, entity_id)
 
             self.assertIsInstance(doc1, dict)
             self.assertEqual(len(queries1), 1)
 
             doc1['attr6'] = int(time.time())
-            queries1 = self._save(cur1, eid, doc1)
+            queries1 = self._save(cur1, entity_id, doc1)
             self.assertEqual(len(queries1), 2)
 
-            doc2 = self._get(cur2, eid)[0]
+            doc2 = self._get(cur2, entity_id)[0]
 
             self.assertEqual(doc1.get('attr6'), doc2.get('attr6'))
             self.assertEqual(doc1, doc2)
 
     def test_b(self):
 
-        eid = self.eid
+        entity_id = self.entity_id
 
         with self.pool.transaction(autocommit=False) as cur1:
             with self.pool.transaction() as cur2:
 
-                doc1, queries1 = self._get(cur1, eid)
+                doc1, queries1 = self._get(cur1, entity_id)
 
                 doc1['attr6'] = int(time.time())
-                queries1 = self._save(cur1, eid, doc1)
+                queries1 = self._save(cur1, entity_id, doc1)
                 self.assertEqual(len(queries1), 2)
 
-                doc2 = self._get(cur2, eid)[0]
+                doc2 = self._get(cur2, entity_id)[0]
 
                 self.assertNotEqual(doc1.get('attr6'), doc2.get('attr6'))
                 self.assertNotEqual(doc1, doc2)
 
         with self.pool.transaction() as cur3:
 
-            doc3 = self._get(cur3, eid)[0]
+            doc3 = self._get(cur3, entity_id)[0]
             self.assertEqual(doc1.get('attr6'), doc3.get('attr6'))
             self.assertEqual(doc1, doc3)
 
@@ -224,25 +224,25 @@ class TestManualCommit(BaseWithPool):
     def test_a(self):
 
         uri, schema = self.uri(), self.schema()
-        eid = self.eid
+        entity_id = self.entity_id
 
         conn = pg.PgConnection(uri)
 
         cur1 = conn.transaction(autocommit=False)
-        doc1 = self._get(cur1, eid)[0]
+        doc1 = self._get(cur1, entity_id)[0]
 
         doc1['attr6'] = int(time.time())
-        self._save(cur1, eid, doc1)
+        self._save(cur1, entity_id, doc1)
 
         with self.pool.transaction() as cur2:
-            doc2 = self._get(cur2, eid)[0]
+            doc2 = self._get(cur2, entity_id)[0]
 
         self.assertNotEqual(doc1, doc2)
 
         conn.commit()
 
         with self.pool.transaction() as cur3:
-            doc3 = self._get(cur3, eid)[0]
+            doc3 = self._get(cur3, entity_id)[0]
 
         self.assertEqual(doc1, doc3)
 
@@ -254,37 +254,37 @@ class TestRollback(BaseWithPool):
 
     def test_a(self):
 
-        eid = self.eid
+        entity_id = self.entity_id
 
         with self.pool.transaction(autocommit=False) as cursor:
-            doc = self._get(cursor, eid)[0]
+            doc = self._get(cursor, entity_id)[0]
             doc['attr5'] = -1
 
             with self.assertRaises(pg.IntegrityError):
-                self._save(cursor, eid, doc)
+                self._save(cursor, entity_id, doc)
 
     def test_b(self):
 
         uri, schema = self.uri(), self.schema()
-        eid = self.eid
+        entity_id = self.entity_id
 
         conn = pg.PgConnection(uri)
 
         cur1 = conn.transaction(autocommit=False)
-        doc1 = self._get(cur1, eid)[0]
+        doc1 = self._get(cur1, entity_id)[0]
 
         doc1['attr6'] = int(time.time())
-        self._save(cur1, eid, doc1)
+        self._save(cur1, entity_id, doc1)
 
         with self.pool.transaction() as cur2:
-            doc2 = self._get(cur2, eid)[0]
+            doc2 = self._get(cur2, entity_id)[0]
 
         self.assertNotEqual(doc1, doc2)
 
         conn.rollback()
 
         with self.pool.transaction() as cur3:
-            doc3 = self._get(cur3, eid)[0]
+            doc3 = self._get(cur3, entity_id)[0]
 
         self.assertNotEqual(doc1, doc3)
         self.assertEqual(doc2, doc3)
@@ -382,13 +382,13 @@ class TestNamedCursor(BaseWithPool):
 class TestFetch(BaseWithPool):
 
     def test_fetch_one(self):
-        eid = self.eid
+        entity_id = self.entity_id
 
         q = 'SELECT "entity_id", "doc" from "test_pg__live" ' \
             'WHERE "entity_id" = %s;'
 
         with self.pool.transaction() as cursor:
-            res = cursor.execute(q, (eid, ))
+            res = cursor.execute(q, (entity_id, ))
 
             self.assertIsInstance(res, pg.PgResult)
             self.assertTrue(len(res) == 1)
@@ -397,7 +397,7 @@ class TestFetch(BaseWithPool):
             r2 = res.get()
 
         self.assertEqual(r1, r2)
-        self.assertEqual(r1['entity_id'], eid)
+        self.assertEqual(r1['entity_id'], entity_id)
         self.assertTrue(res.is_closed)
 
         with self.assertRaises(pg.PgCursorClosedError):

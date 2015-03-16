@@ -73,7 +73,7 @@ class BaseWithPool(Base):
 
     def __init__(self, *args, **kwargs):
         super(BaseWithPool, self).__init__(*args, **kwargs)
-        self._eid = None
+        self._entity_id = None
 
     @classmethod
     def setUpClass(cls):
@@ -87,34 +87,34 @@ class BaseWithPool(Base):
         cls.pool = cls.uri_kwargs = None
 
     @property
-    def eid(self):
-        if self._eid is None:
+    def entity_id(self):
+        if self._entity_id is None:
             first_id, last_id = self.first_id(), self.last_id()
-            self._eid = random.randint(first_id, last_id)
-        return self._eid
+            self._entity_id = random.randint(first_id, last_id)
+        return self._entity_id
 
-    def _get(self, cursor, eid):
+    def _get(self, cursor, entity_id):
         q = 'SELECT "doc" FROM "test_pg__live" WHERE "entity_id" = %s;'
-        res = cursor.execute_and_get(q, (eid, ))
+        res = cursor.execute_and_get(q, (entity_id, ))
         return res['doc'], list(cursor.queries)
 
-    def _cnt(self, cursor, eid, raw=False):
+    def _cnt(self, cursor, entity_id, raw=False):
         nm = 'test_pg'
         if not raw:
             nm += '__live'
         q = 'SELECT COUNT("id") as cnt FROM "{}" ' \
             'WHERE "entity_id" = %s;'.format(nm)
-        res = cursor.execute_and_get(q, (eid, ))
+        res = cursor.execute_and_get(q, (entity_id, ))
         return res['cnt']
 
-    def _count(self, cursor, eid):
-        return self._cnt(cursor, eid)
+    def _count(self, cursor, entity_id):
+        return self._cnt(cursor, entity_id)
 
-    def _count_raw(self, cursor, eid):
-        return self._cnt(cursor, eid, raw=True)
+    def _count_raw(self, cursor, entity_id):
+        return self._cnt(cursor, entity_id, raw=True)
 
-    def _save(self, cursor, eid, doc):
+    def _save(self, cursor, entity_id, doc):
         cursor.execute(
             'INSERT INTO "test_pg__live" ("entity_id", "doc") '
-            'VALUES (%s, %s);', (eid, doc))
+            'VALUES (%s, %s);', (entity_id, doc))
         return list(cursor.queries)

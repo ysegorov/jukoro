@@ -19,12 +19,12 @@ class QueryBuilder(object):
     def save(self, entity):
         target = self._target
         fields = entity.db_fields()
-        eid, doc = entity.db_values
+        entity_id, doc = entity.db_values
         q = 'INSERT INTO "{target}" ("{fields}") VALUES ({placeholders}) ' \
             'RETURNING "{fields}";'
         fields = '","'.join(fields)
-        placeholders = '%s, %s' if eid else 'DEFAULT, %s'
-        params = (eid, doc) if eid else (doc,)
+        placeholders = '%s, %s' if entity_id else 'DEFAULT, %s'
+        params = (entity_id, doc) if entity_id else (doc,)
         q = q.format(target=target, fields=fields, placeholders=placeholders)
         return (q, params)
 
