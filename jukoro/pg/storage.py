@@ -35,7 +35,7 @@ class BaseSql(object):
         kwargs = {}
         for attr in ('db_table', 'db_view'):
             if hasattr(instance, attr):
-                kwargs[attr] = getattr(instance, attr)
+                kwargs[attr] = (getattr(instance, attr)).name
         return kwargs
 
 
@@ -93,7 +93,7 @@ class CreateTableSql(BaseSql):
 
     @property
     def name(self):
-        return self.instance.db_table
+        return self.instance.db_table.name
 
 
 CREATE_VIEW = """
@@ -108,7 +108,7 @@ class CreateViewSql(BaseSql):
 
     @property
     def name(self):
-        return self.instance.db_view
+        return self.instance.db_view.name
 
 
 class BaseTrigger(BaseSql):
@@ -116,12 +116,12 @@ class BaseTrigger(BaseSql):
     @property
     def trigger_proc_name(self):
         instance = self.instance
-        return 'ju_before__{}__{}'.format(instance.db_table, self.suffix)
+        return 'ju_before__{}__{}'.format(instance.db_table.name, self.suffix)
 
     @property
     def name(self):
         instance = self.instance
-        return 'ju_before__{}__{}'.format(instance.db_table, self.suffix)
+        return 'ju_before__{}__{}'.format(instance.db_table.name, self.suffix)
 
     def sql_vars(self):
         kwargs = super(BaseTrigger, self).sql_vars()
@@ -270,7 +270,7 @@ class Index(object):
     @property
     def name(self):
         return 'ju_idx__{}__{}_entity_start_entity_end'.format(
-            self.db_table, self._attr.slug)
+            self.db_table.name, self._attr.slug)
 
     @property
     def spec(self):
@@ -283,7 +283,7 @@ class Index(object):
         return {
             'index_name': self.name,
             'spec': self.spec,
-            'db_table': self.db_table,
+            'db_table': self.db_table.name,
         }
 
     @property
@@ -319,14 +319,14 @@ class Constraint(object):
 
     @property
     def name(self):
-        return 'ju_validate__{}__{}'.format(self.db_table,
+        return 'ju_validate__{}__{}'.format(self.db_table.name,
                                             self._attr.slug)
 
     def sql_vars(self):
         return {
             'constraint_name': self.name,
             'attr': self._attr.slug,
-            'db_table': self.db_table,
+            'db_table': self.db_table.name,
             'minlen': self._attr.minlen,
         }
 
@@ -348,7 +348,7 @@ class DBTableName(object):
         self._nm = name
 
     def __get__(self, instance, owner):
-        return self._nm
+        return self
 
     def __set__(self, instance):
         raise AttributeError
@@ -357,6 +357,10 @@ class DBTableName(object):
     def name(self):
         return self._nm
 
+    @property
+    def fields(self):
+        return ('id', 'entity_id', 'entity_start', 'entity_end', 'doc')
+
 
 class DBViewName(DBTableName):
     suffix = '__live'
@@ -364,26 +368,31 @@ class DBViewName(DBTableName):
     def __init__(self, name):
         self._nm = '{}{}'.format(name, self.suffix)
 
+    @property
+    def fields(self):
+        return ('entity_id', 'doc')
+
 
 _registry = OrderedDict()
 
 
 def register(entity_class):
-    tn = entity_class.db_table
+    tn = entity_class.db_table.name
     if tn in _registry:
         raise PgAlreadyRegisteredError(
             'Model for "%s" already registered' % tn)
-    _registry[entity_class.db_table] = Table(entity_class)
+    _registry[tn] = Table(entity_class)
 
 
 def unregister(entity_class):
     if entity_class.db_table:
-        _registry.pop(entity_class.db_table, None)
+        _registry.pop(entity_class.db_table.name, None)
 
 
 def is_registered(entity_class):
     if hasattr(entity_class, 'db_table'):
-        return entity_class.db_table and entity_class.db_table in _registry
+        return entity_class.db_table and \
+            entity_class.db_table.name in _registry
     return False
 
 

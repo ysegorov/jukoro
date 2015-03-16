@@ -156,6 +156,11 @@ class TestBaseSql(Base):
 
     def test(self):
 
+        class Name(object):
+
+            def __init__(self, name):
+                self.name = name
+
         class S1(storage.BaseSql):
             query = 'hello'
 
@@ -177,25 +182,25 @@ class TestBaseSql(Base):
 
             @property
             def db_table(self):
-                return 'b'
+                return Name('b')
 
         class C(object):
             s3 = storage.SqlDescr(S3)
 
             @property
             def db_view(self):
-                return 'cv'
+                return Name('cv')
 
         class D(object):
             s4 = storage.SqlDescr(S4)
 
             @property
             def db_table(self):
-                return 'd'
+                return Name('d')
 
             @property
             def db_view(self):
-                return 'dv'
+                return Name('dv')
 
         a, b, c, d = A(), B(), C(), D()
         self.assertIsInstance(a.asql, storage.BaseSql)

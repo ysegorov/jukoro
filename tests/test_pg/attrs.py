@@ -61,9 +61,9 @@ class TestAttrs(Base):
         self.assertFalse(hasattr(pg.BaseUser, 'db_view'))
 
         self.assertTrue(hasattr(self.User, 'db_table'))
-        self.assertEqual(self.User.db_table, 'test_user')
+        self.assertEqual(self.User.db_table.name, 'test_user')
         self.assertTrue(hasattr(self.User, 'db_view'))
-        self.assertEqual(self.User.db_view, 'test_user__live')
+        self.assertEqual(self.User.db_view.name, 'test_user__live')
 
     def test_attr_cmp(self):
         self.assertTrue(self.User.first_name.idx < self.User.last_name.idx)
