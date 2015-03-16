@@ -7,7 +7,7 @@ from .base import TestEntity, Base, BaseWithPool
 from jukoro import pg
 
 
-__all__ = ['TestQueryBuilderDescr', 'TestQueryBuilder']
+__all__ = ['TestQueryBuilderDescr', 'TestQueryViewBuilder']
 
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class TestQueryBuilderDescr(Base):
 
     def test_a(self):
         q = TestEntity.qbuilder
-        self.assertIsInstance(q, pg.QueryBuilder)
+        self.assertIsInstance(q, pg.QueryViewBuilder)
 
         with self.assertRaises(AttributeError):
             pg.BaseEntity.qbuilder.by_id
@@ -27,7 +27,35 @@ class TestQueryBuilderDescr(Base):
             a.qbuilder
 
 
-class TestQueryBuilder(BaseWithPool):
+class TestQueryViewBuilder(BaseWithPool):
+
+    def test_create(self):
+        a, b, c = TestEntity(), TestEntity(), TestEntity()
+
+        for idx, entity in enumerate((a, b, c)):
+            entity.update(attr1='miracle-%s' % idx,
+                          attr2='musician-%s' % idx,
+                          attr3='boundary-%s' % idx,
+                          attr4=idx, attr5=idx * 100)
+
+        with self.pool.transaction() as cursor:
+            q, params = TestEntity.qbuilder.create(a, b, c)
+
+            res = cursor.execute(q, params)
+            res = res.all()
+            res = sorted(res, key=lambda x: x['doc']['attr4'])
+            aa, bb, cc = res
+            aa, bb, cc = TestEntity(**aa), TestEntity(**bb), TestEntity(**cc)
+
+            self.assertEqual(a.attr1, aa.attr1)
+            self.assertEqual(a.attr4, aa.attr4)
+            self.assertEqual(a.doc, aa.doc)
+            self.assertEqual(b.attr2, bb.attr2)
+            self.assertEqual(b.attr5, bb.attr5)
+            self.assertEqual(b.doc, bb.doc)
+            self.assertEqual(c.attr3, cc.attr3)
+            self.assertEqual(c.attr5, cc.attr5)
+            self.assertEqual(c.doc, cc.doc)
 
     def test_save(self):
         last_id = self.last_id()

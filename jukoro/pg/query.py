@@ -1,54 +1,64 @@
 # -*- coding: utf-8 -*-
 
 
-class QueryBuilder(object):
+# TODO become really query builder
 
-    def __init__(self, klass, db_target, db_fields):
+class QueryViewBuilder(object):
+
+    def __init__(self, klass, db_target):
         self._klass = klass
         self._target = db_target
-        self._fields = db_fields
 
     @property
     def fields(self):
-        return '","'.join(self._fields)
+        return '"%s"' % '","'.join(['entity_id', 'doc'])
 
     def by_id(self, entity_id):
         if not entity_id:
             raise ValueError('"entity_id" must be defined to get instance')
         klass, target = self._klass, self._target
-        q = 'SELECT "{fields}" FROM "{target}" WHERE "entity_id" = %s;'
+        q = 'SELECT {fields} FROM "{target}" WHERE "entity_id" = %s;'
         q = q.format(target=target, fields=self.fields)
         return (q, (entity_id, ))
 
-    def create(self, entity):
+    def create(self, *entities):
+        # TODO chunks
         target = self._target
-        doc = entity.doc
-        q = 'INSERT INTO "{target}" ("{fields}") VALUES (DEFAULT, %s) ' \
-            'RETURNING "{fields}";'
-        q = q.format(target=target, fields=self.fields)
-        return (q, (doc, ))
+        placeholders = ','.join(['(%s)'] * len(entities))
+        params = [x.doc for x in entities]
+        q = 'INSERT INTO "{target}" ("doc") VALUES {placeholders} ' \
+            'RETURNING {fields};'
+        q = q.format(
+            target=target, fields=self.fields, placeholders=placeholders)
+        return (q, params)
 
-    def update(self, entity):
+    def update(self, *entities):
+        # TODO chunks
         target = self._target
-        q = 'UPDATE "{target}" SET "doc" = %s WHERE "entity_id" = %s ' \
-            'RETURNING "{fields}";'
-        q = q.format(target=target, fields=self.fields)
-        return (q, (entity.doc, entity.entity_id))
+        placeholders, params = [], []
+        q = 'UPDATE "{target}" AS t SET "doc" = (v."doc")::jsonb ' \
+            'FROM (VALUES {placeholders} ) AS v("entity_id", "doc") ' \
+            'WHERE v."entity_id" = t."entity_id" ' \
+            'RETURNING t."entity_id", t."doc";'
+        for entity in entities:
+            placeholders.append('(%s, %s)')
+            params.extend([entity.entity_id, entity.doc])
+        q = q.format(target=target, placeholders=','.join(placeholders))
+        return (q, params)
 
 
 class QueryBuilderDescr(object):
 
-    def __init__(self, db_target_name, db_fields, query_builder=None):
+    def __init__(self, db_target_name, query_builder=None):
         self._target_name = db_target_name
-        self._fields = db_fields
-        self._qb = query_builder or QueryBuilder
+        self._qb = query_builder or QueryViewBuilder
 
     def __get__(self, instance, owner):
         if instance is not None:
             raise AttributeError(
                 'This is a "{}" class attribute, not an instance one'.format(
                     owner.__name__))
-        return self._qb(owner, self._target_name, tuple(self._fields))
+        return self._qb(owner, self._target_name)
 
     def __set__(self, instance, value):
         raise AttributeError

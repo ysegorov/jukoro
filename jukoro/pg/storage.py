@@ -350,9 +350,10 @@ class DBTableName(object):
     def name(self):
         return self._nm
 
-    @property
-    def fields(self):
-        return ('id', 'entity_id', 'entity_start', 'entity_end', 'doc')
+    # TODO
+    # @property
+    # def fields(self):
+    #     return ('id', 'entity_id', 'entity_start', 'entity_end', 'doc')
 
 
 class DBViewName(DBTableName):
@@ -361,9 +362,10 @@ class DBViewName(DBTableName):
     def __init__(self, name):
         self._nm = '{}{}'.format(name, self.suffix)
 
-    @property
-    def fields(self):
-        return ('entity_id', 'doc')
+    # TODO
+    # @property
+    # def fields(self):
+    #     return ('entity_id', 'doc')
 
 
 _registry = OrderedDict()

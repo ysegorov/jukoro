@@ -32,8 +32,7 @@ class EntityMeta(type):
             dct['db_view'] = db_view = storage.DBViewName(tn)
 
             if 'qbuilder' not in dct:
-                dct['qbuilder'] = QueryBuilderDescr(db_view.name,
-                                                    db_view.fields)
+                dct['qbuilder'] = QueryBuilderDescr(db_view.name)
 
         own_slugs = [k for (k, v) in dct.iteritems() if isinstance(v, Attr)]
         attrs.extend(own_slugs)
