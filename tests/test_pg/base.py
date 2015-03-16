@@ -113,8 +113,19 @@ class BaseWithPool(Base):
     def _count_raw(self, cursor, entity_id):
         return self._cnt(cursor, entity_id, raw=True)
 
-    def _save(self, cursor, entity_id, doc):
-        cursor.execute(
+    def _create(self, cursor, doc):
+        res = cursor.execute_and_get(
             'INSERT INTO "test_pg__live" ("entity_id", "doc") '
-            'VALUES (%s, %s);', (entity_id, doc))
+            'VALUES (DEFAULT, %s) RETURNING "entity_id";', (doc, ))
+        return res['entity_id'], list(cursor.queries)
+
+    def _update(self, cursor, entity_id, doc):
+        cursor.execute(
+            'UPDATE "test_pg__live" SET "doc" = %s '
+            'WHERE "entity_id" = %s;', (doc, entity_id))
+        return list(cursor.queries)
+
+    def _delete(self, cursor, entity_id):
+        cursor.execute('DELETE FROM "test_pg__live" WHERE "entity_id" = %s;',
+                       (entity_id, ))
         return list(cursor.queries)

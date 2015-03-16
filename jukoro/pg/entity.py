@@ -83,8 +83,12 @@ class BaseEntity(object):
 
     def save(self, cursor):
         klass = type(self)
-        q, params = klass.qbuilder.save(self)
+        if self._entity_id is None:
+            q, params = klass.qbuilder.create(self)
+        else:
+            q, params = klass.qbuilder.update(self)
         res = cursor.execute_and_get(q, params)
+        logger.debug('res: %s', res)
         return klass(**res)
 
 

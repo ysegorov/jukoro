@@ -164,12 +164,51 @@ class TestHistory(BaseWithPool):
             for __ in xrange(cnt):
                 time.sleep(0.125)
                 doc['attr6'] = int(time.time())
-                self._save(cursor, entity_id, doc)
+                self._update(cursor, entity_id, doc)
 
         with self.pool.transaction() as cursor:
             count = self._count(cursor, entity_id)
             raw_count = self._count_raw(cursor, entity_id)
             self.assertEqual(count, 1)
+            self.assertEqual(raw_count, cnt + 1)
+
+    def test_history_count2(self):
+
+        doc = {
+            'attr1': 'Ferrari',
+            'attr2': 'McLaren',
+            'attr3': 'Mercedes',
+            'attr4': 22,
+            'attr5': 122,
+            'attr6': False
+        }
+        cnt = 3
+
+        with self.pool.transaction() as cursor:
+            entity_id = self._create(cursor, doc)[0]
+
+            count = self._count(cursor, entity_id)
+            raw_count = self._count_raw(cursor, entity_id)
+            self.assertEqual(count, 1)
+            self.assertEqual(raw_count, 1)
+
+        with self.pool.transaction() as cursor:
+            doc1 = self._get(cursor, entity_id)[0]
+
+            self.assertFalse(doc1['attr6'])
+            self.assertFalse('attr7' in doc)
+
+            for __ in xrange(cnt):
+                time.sleep(0.125)
+                doc['attr7'] = int(time.time())
+                self._update(cursor, entity_id, doc)
+
+            self._delete(cursor, entity_id)
+
+        with self.pool.transaction() as cursor:
+            count = self._count(cursor, entity_id)
+            raw_count = self._count_raw(cursor, entity_id)
+            self.assertEqual(count, 0)
             self.assertEqual(raw_count, cnt + 1)
 
 
@@ -186,7 +225,7 @@ class TestAutoCommit(BaseWithPool):
             self.assertEqual(len(queries1), 1)
 
             doc1['attr6'] = int(time.time())
-            queries1 = self._save(cur1, entity_id, doc1)
+            queries1 = self._update(cur1, entity_id, doc1)
             self.assertEqual(len(queries1), 2)
 
             doc2 = self._get(cur2, entity_id)[0]
@@ -204,7 +243,7 @@ class TestAutoCommit(BaseWithPool):
                 doc1, queries1 = self._get(cur1, entity_id)
 
                 doc1['attr6'] = int(time.time())
-                queries1 = self._save(cur1, entity_id, doc1)
+                queries1 = self._update(cur1, entity_id, doc1)
                 self.assertEqual(len(queries1), 2)
 
                 doc2 = self._get(cur2, entity_id)[0]
@@ -232,7 +271,7 @@ class TestManualCommit(BaseWithPool):
         doc1 = self._get(cur1, entity_id)[0]
 
         doc1['attr6'] = int(time.time())
-        self._save(cur1, entity_id, doc1)
+        self._update(cur1, entity_id, doc1)
 
         with self.pool.transaction() as cur2:
             doc2 = self._get(cur2, entity_id)[0]
@@ -261,7 +300,7 @@ class TestRollback(BaseWithPool):
             doc['attr5'] = -1
 
             with self.assertRaises(pg.IntegrityError):
-                self._save(cursor, entity_id, doc)
+                self._update(cursor, entity_id, doc)
 
     def test_b(self):
 
@@ -274,7 +313,7 @@ class TestRollback(BaseWithPool):
         doc1 = self._get(cur1, entity_id)[0]
 
         doc1['attr6'] = int(time.time())
-        self._save(cur1, entity_id, doc1)
+        self._update(cur1, entity_id, doc1)
 
         with self.pool.transaction() as cur2:
             doc2 = self._get(cur2, entity_id)[0]

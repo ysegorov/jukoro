@@ -33,7 +33,7 @@ class TestQueryBuilder(BaseWithPool):
         last_id = self.last_id()
 
         a = TestEntity()
-        q, params = TestEntity.qbuilder.save(a)
+        q, params = TestEntity.qbuilder.create(a)
 
         with self.pool.transaction() as cursor:
             with self.assertRaises(pg.IntegrityError):
@@ -41,7 +41,7 @@ class TestQueryBuilder(BaseWithPool):
 
             a.update(attr1='miracle', attr2='musician',
                      attr3='boundary', attr4=5, attr5=26)
-            q, params = TestEntity.qbuilder.save(a)
+            q, params = TestEntity.qbuilder.create(a)
             self.assertTrue(len(params) == 1)
 
             res = cursor.execute(q, params)

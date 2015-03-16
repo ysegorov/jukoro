@@ -30,12 +30,14 @@ class BaseSql(object):
     def sql(self):
         return self.query.format(**self.sql_vars())
 
-    def sql_vars(self):
+    def sql_vars(self, **extras):
         instance = self.instance
         kwargs = {}
         for attr in ('db_table', 'db_view'):
             if hasattr(instance, attr):
                 kwargs[attr] = (getattr(instance, attr)).name
+        for k, v in extras.iteritems():
+            kwargs[k] = v
         return kwargs
 
 
@@ -114,67 +116,58 @@ class CreateViewSql(BaseSql):
 class BaseTrigger(BaseSql):
 
     @property
-    def trigger_proc_name(self):
-        instance = self.instance
-        return 'ju_before__{}__{}'.format(instance.db_table.name, self.suffix)
-
-    @property
     def name(self):
         instance = self.instance
-        return 'ju_before__{}__{}'.format(instance.db_table.name, self.suffix)
+        return 'ju_before__{}__{}'.format(instance.db_view.name, self.suffix)
 
     def sql_vars(self):
-        kwargs = super(BaseTrigger, self).sql_vars()
-        kwargs.update({
-            'trigger_name': self.name,
-            'trigger_proc_name': self.trigger_proc_name
-        })
-        return kwargs
+        return super(BaseTrigger, self).sql_vars(name=self.name,
+                                                 suffix=self.suffix)
 
 
-TRIGGER_INSERT = """
--- {db_table} trigger on insert
-CREATE OR REPLACE FUNCTION {trigger_proc_name}() RETURNS TRIGGER AS $$
+TRIGGER_UPDATE = """
+-- {db_view} trigger on update
+CREATE OR REPLACE FUNCTION {name}() RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.entity_id IS NOT NULL THEN
-        UPDATE "{db_table}" SET "entity_end" = now()
-            WHERE "entity_id" = NEW.entity_id AND "entity_end" > now();
-    END IF;
+    UPDATE "{db_table}" SET "entity_end" = CURRENT_TIMESTAMP
+        WHERE "id" = OLD.id;
+    INSERT INTO "{db_table}" ("entity_id", "doc")
+        VALUES (NEW.entity_id, NEW.doc);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER "{trigger_name}"
-    BEFORE INSERT
-    ON "{db_table}"
+CREATE TRIGGER "{name}"
+    INSTEAD OF UPDATE
+    ON "{db_view}"
     FOR EACH ROW
-    EXECUTE PROCEDURE {trigger_proc_name}();
+    EXECUTE PROCEDURE {name}();
 
 """
 
 
-class TriggerOnInsertSql(BaseTrigger):
-    query = TRIGGER_INSERT
-    suffix = 'insert'
+class TriggerOnUpdateSql(BaseTrigger):
+    query = TRIGGER_UPDATE
+    suffix = 'update'
 
 
 TRIGGER_DELETE = """
--- {db_table} trigger on delete
-CREATE OR REPLACE FUNCTION {trigger_proc_name}() RETURNS TRIGGER AS $$
+-- {db_view} trigger on delete
+CREATE OR REPLACE FUNCTION {name}() RETURNS TRIGGER AS $$
 BEGIN
-    IF OLD.entity_id IS NOT NULL THEN
-        UPDATE "{db_table}" SET "entity_end" = now()
-            WHERE "entity_id" = OLD.entity_id AND "entity_end" > now();
+    IF OLD.id IS NOT NULL THEN
+        UPDATE "{db_table}" SET "entity_end" = CURRENT_TIMESTAMP
+            WHERE "id" = OLD.id;
     END IF;
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER "{trigger_name}"
-    BEFORE DELETE
-    ON "{db_table}"
+CREATE TRIGGER "{name}"
+    INSTEAD OF DELETE
+    ON "{db_view}"
     FOR EACH ROW
-    EXECUTE PROCEDURE {trigger_proc_name}();
+    EXECUTE PROCEDURE {name}();
 """
 
 
@@ -200,7 +193,7 @@ class Schema(object):
 class Table(object):
     sql_create_table = SqlDescr(CreateTableSql)
     sql_create_view = SqlDescr(CreateViewSql)
-    sql_trigger_on_insert = SqlDescr(TriggerOnInsertSql)
+    sql_trigger_on_update = SqlDescr(TriggerOnUpdateSql)
     sql_trigger_on_delete = SqlDescr(TriggerOnDeleteSql)
 
     state_values = ('tables', 'views', 'triggers', 'indices', 'constraints')
@@ -230,7 +223,7 @@ class Table(object):
 
     @property
     def triggers(self):
-        for nm in ('sql_trigger_on_insert', 'sql_trigger_on_delete'):
+        for nm in ('sql_trigger_on_update', 'sql_trigger_on_delete'):
             yield getattr(self, nm)
 
     @property

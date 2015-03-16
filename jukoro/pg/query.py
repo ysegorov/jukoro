@@ -20,16 +20,20 @@ class QueryBuilder(object):
         q = q.format(target=target, fields=self.fields)
         return (q, (entity_id, ))
 
-    def save(self, entity):
+    def create(self, entity):
         target = self._target
-        entity_id, doc = entity.db_values
-        q = 'INSERT INTO "{target}" ("{fields}") VALUES ({placeholders}) ' \
+        doc = entity.doc
+        q = 'INSERT INTO "{target}" ("{fields}") VALUES (DEFAULT, %s) ' \
             'RETURNING "{fields}";'
-        placeholders = '%s, %s' if entity_id else 'DEFAULT, %s'
-        params = (entity_id, doc) if entity_id else (doc,)
-        q = q.format(target=target,
-                     fields=self.fields, placeholders=placeholders)
-        return (q, params)
+        q = q.format(target=target, fields=self.fields)
+        return (q, (doc, ))
+
+    def update(self, entity):
+        target = self._target
+        q = 'UPDATE "{target}" SET "doc" = %s WHERE "entity_id" = %s ' \
+            'RETURNING "{fields}";'
+        q = q.format(target=target, fields=self.fields)
+        return (q, (entity.doc, entity.entity_id))
 
 
 class QueryBuilderDescr(object):

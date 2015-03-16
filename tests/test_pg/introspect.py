@@ -15,8 +15,8 @@ class TestPgIntrospect(Base):
         self.assertTrue(schema in state.schemas)
         self.assertTrue('test_pg' in state.tables)
         self.assertTrue('test_pg__live' in state.views)
-        self.assertTrue('ju_before__test_pg__insert' in state.triggers)
-        self.assertTrue('ju_before__test_pg__delete' in state.triggers)
+        self.assertTrue('ju_before__test_pg__live__update' in state.triggers)
+        self.assertTrue('ju_before__test_pg__live__delete' in state.triggers)
         self.assertTrue('ju_idx__test_pg__attr1_entity_start_entity_end'
                         in state.indices)
         self.assertTrue('ju_idx__test_pg__attr2_entity_start_entity_end'
