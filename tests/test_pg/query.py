@@ -63,7 +63,7 @@ class TestQueryViewBuilder(BaseWithPool):
         with self.pool.transaction() as cursor:
             q, params = TestEntity.qbuilder.by_id(first_id, last_id)
             res = cursor.execute(q, params)
-            res = sorted(res.all(), key=lambda x: x['entity_id'])
+            res = res.all()
             self.assertTrue(len(res) == 2)
             a, b = TestEntity(**res[0]), TestEntity(**res[1])
             self.assertEqual(a.entity_id, first_id)

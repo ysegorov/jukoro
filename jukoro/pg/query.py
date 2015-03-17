@@ -21,7 +21,7 @@ class QueryViewBuilder(object):
         op = '=' if len(ids) == 1 else 'IN'
         params = ids if len(ids) == 1 else (ids, )
         where = 'WHERE "entity_id" {op} %s'.format(op=op)
-        q = 'SELECT {fields} FROM "{target}" {where};'
+        q = 'SELECT {fields} FROM "{target}" {where} ORDER BY "entity_id" ASC;'
         q = q.format(target=target, fields=self.fields, where=where)
         return (q, params)
 
