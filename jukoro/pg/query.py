@@ -5,8 +5,9 @@
 
 class QueryViewBuilder(object):
 
-    def __init__(self, db_target):
+    def __init__(self, db_target, klass):
         self._target = db_target
+        self._klass = klass
 
     @property
     def fields(self):
@@ -63,6 +64,28 @@ class QueryViewBuilder(object):
         q = q.format(target=target, where=where)
         return (q, params)
 
+    def select(self, *conds, **kwargs):
+        target, fields = self._target, self.fields
+        q = 'SELECT {fields} FROM "{target}"' \
+            '{where}{order_by}{limit}{offset}'
+
+        where, params = _transform_conditions(self._klass, *conds)
+        order_by = _transform_order_by(
+            self._klass, kwargs.pop('order_by', None))
+        limit, offset = '', ''
+
+        if 'limit' in kwargs:
+            limit = ' LIMIT %s '
+            params.append(kwargs['limit'])
+        if 'offset' in kwargs:
+            offset = ' OFFSET %s '
+            params.append(kwargs['offset'])
+
+        q = q.format(target=target, fields=fields, where=where,
+                     order_by=order_by, limit=limit, offset=offset)
+        q = q.strip() + ';'
+        return (q, params)
+
 
 class QueryBuilderDescr(object):
 
@@ -75,7 +98,63 @@ class QueryBuilderDescr(object):
             raise AttributeError(
                 'This is a "{}" class attribute, not an instance one'.format(
                     owner.__name__))
-        return self._qb(self._target_name)
+        return self._qb(self._target_name, owner)
 
     def __set__(self, instance, value):
         raise AttributeError
+
+
+def _transform_op(op):
+    ops = {
+        'eq': '=',
+        'ne': '!=',
+        'in': 'IN',
+        'lt': '<',
+        'gt': '>',
+        'lte': '<=',
+        'gte': '>=',
+    }
+    if op not in ops:
+        raise ValueError('Unknown operator "{}"'.format(op))
+    return ops.get(op)
+
+
+def _transform_conditions(klass, *conditions):
+    if not conditions:
+        return '', []
+    placeholders, params = [], []
+    for cond in conditions:
+        if isinstance(cond, dict):
+            placeholders.append('("doc" @> %s)')
+            params.append(cond)
+        elif isinstance(cond, (list, tuple)):
+            block = []
+            for attr, op, value in cond:
+                op = _transform_op(op)
+                cast = (getattr(klass, attr)).db_cast()
+                block.append(
+                    '("doc"->>\'{attr}\')::{cast} {op} %s'.format(
+                        attr=attr, cast=cast, op=op))
+                params.append(value)
+            placeholders.append('(%s)' % ' AND '.join(block))
+    placeholders = ' WHERE %s' % ' OR '.join(placeholders)
+    return placeholders, params
+
+
+def _transform_order_by(klass, fields):
+    spec = '("doc"->>\'{attr}\')::{cast} {direction}'
+    if isinstance(fields, basestring):
+        cast = (getattr(klass, fields)).db_cast()
+        return ' ORDER BY %s ' % spec.format(attr=fields,
+                                             cast=cast, direction='ASC')
+    elif isinstance(fields, (list, tuple)):
+        res = []
+        for f in fields:
+            if isinstance(f, (list, tuple)):
+                attr, direction = f
+            else:
+                attr, direction = f, 'ASC'
+            cast = (getattr(klass, attr)).db_cast()
+            res.append(spec.format(attr=attr, cast=cast, direction=direction))
+        return 'ORDER BY %s' % ', '.join(res)
+    return ''

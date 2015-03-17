@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
 import logging
 import random
 
@@ -33,7 +34,7 @@ class TestQueryViewBuilder(BaseWithPool):
     def test_by_id(self):
         first_id, last_id = self.first_id(), self.last_id()
         vn = 'test_pg__live'
-        qb = pg.QueryViewBuilder(vn)
+        qb = pg.QueryViewBuilder(vn, TestEntity)
 
         q, params = qb.by_id(12)
         self.assertTrue(len(params) == 1)
@@ -142,7 +143,7 @@ class TestQueryViewBuilder(BaseWithPool):
         eid1 = random.randint(first_id + 1, last_id - 1)
         eid2 = random.randint(first_id + 1, last_id - 1)
         vn = 'test_pg__live'
-        qb = pg.QueryViewBuilder(vn)
+        qb = pg.QueryViewBuilder(vn, TestEntity)
 
         with self.assertRaises(ValueError):
             TestEntity.qbuilder.delete(None)
@@ -172,3 +173,83 @@ class TestQueryViewBuilder(BaseWithPool):
             res = res.all()
 
             self.assertTrue(len(res) == 0)
+
+    def test_select_order_by(self):
+
+        vn = 'test_pg__live'
+        qb = pg.QueryViewBuilder(vn, TestEntity)
+
+        q, params = qb.select(order_by='attr4')
+        self.assertEqual(
+            'SELECT "entity_id","doc" FROM "test_pg__live" '
+            'ORDER BY ("doc"->>\'attr4\')::INT ASC;', q)
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q, params)
+            res = res.all()
+
+            self.assertTrue(len(res) > 0)
+
+            prev = None
+            for row in res:
+                entity = TestEntity(**row)
+                if prev is not None:
+                    self.assertLessEqual(prev.attr4, entity.attr4)
+                prev = entity
+
+    def test_select_where(self):
+        vn = 'test_pg__live'
+        qb = pg.QueryViewBuilder(vn, TestEntity)
+        raw = 'SELECT ("doc"->>\'attr4\')::INT AS attr4, COUNT("id") as cnt ' \
+            'FROM test_pg__live GROUP BY attr4;'
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(raw)
+            values = [(x['attr4'], x['cnt']) for x in res]
+
+            attr3_values = defaultdict(int)
+            attr4, cnt = random.choice(values)
+            attr4_lte_cnt = sum(x[1] for x in values if x[0] <= attr4)
+            q, params = qb.select({'attr4': attr4})
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), cnt)
+
+            for row in res:
+                self.assertEqual(attr4, row['doc']['attr4'])
+
+            q, params = qb.select(
+                (('attr4', 'eq', attr4), )
+            )
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), cnt)
+
+            for row in res:
+                self.assertEqual(attr4, row['doc']['attr4'])
+                attr3_values[row['doc']['attr3']] += 1
+
+            q, params = qb.select(
+                (('attr4', 'lte', attr4), )
+            )
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), attr4_lte_cnt)
+
+            for row in res:
+                self.assertLessEqual(row['doc']['attr4'], attr4)
+
+            attr3 = random.choice(attr3_values.keys())
+            attr3_cnt = attr3_values[attr3]
+
+            q, params = qb.select(
+                (('attr4', 'eq', attr4),
+                 ('attr3', 'eq', attr3))
+            )
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), attr3_cnt)
+
+            for row in res:
+                self.assertEqual(row['doc']['attr4'], attr4)
+                self.assertEqual(row['doc']['attr3'], attr3)
