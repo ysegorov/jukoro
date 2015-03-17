@@ -32,7 +32,7 @@ BAD_URI = 'postgresq://localhost:5432/jukoro_test.a1'
 IS_ONLINE = False
 SCHEMA = 'public'
 FIRST_ID = LAST_ID = None
-MOCK_COUNT = 100
+MOCK_COUNT = 4000
 
 SQL_TEARDOWN = """
 DROP SCHEMA {schema} CASCADE;
