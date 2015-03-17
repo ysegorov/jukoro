@@ -39,6 +39,11 @@ class Attr(object):
     def idx(self):
         return self._idx
 
+    def db_cast(self):
+        if self.is_int:
+            return 'INT'
+        return 'TEXT'
+
     def __cmp__(self, other):
         if isinstance(other, type(self)):
             return self.idx - other.idx
