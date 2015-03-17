@@ -150,8 +150,9 @@ class PgTransaction(object):
 
     def __exit__(self, exc_type, exc_value, tb):
         if exc_type is not None:
-            logger.debug('rollback!', exc_info=True)
-            self._pg_conn.rollback()
+            logger.exception('exception executing query')
+            if not self._autocommit:
+                self._pg_conn.rollback()
             self._failed = True
         else:
             if self._named or not self._autocommit:
