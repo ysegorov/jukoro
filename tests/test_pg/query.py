@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import random
 
 from .base import TestEntity, Base, BaseWithPool
 
@@ -48,6 +49,9 @@ class TestQueryViewBuilder(BaseWithPool):
 
         with self.assertRaises(ValueError):
             TestEntity.qbuilder.by_id(None)
+
+        with self.assertRaises(ValueError):
+            TestEntity.qbuilder.by_id()
 
         with self.pool.transaction() as cursor:
             q, params = TestEntity.qbuilder.by_id(last_id)
@@ -97,7 +101,7 @@ class TestQueryViewBuilder(BaseWithPool):
             self.assertEqual(c.attr5, cc.attr5)
             self.assertEqual(c.doc, cc.doc)
 
-    def test_save(self):
+    def test_update(self):
         last_id = self.last_id()
 
         a = TestEntity()
@@ -130,3 +134,41 @@ class TestQueryViewBuilder(BaseWithPool):
             self.assertEqual(c.attr4, 45)
             self.assertEqual(b.entity_id, c.entity_id)
             self.assertEqual(b.attr1, c.attr1)
+
+    def test_delete(self):
+        random.seed()
+
+        first_id, last_id = self.first_id(), self.last_id()
+        eid1 = random.randint(first_id + 1, last_id - 1)
+        eid2 = random.randint(first_id + 1, last_id - 1)
+        vn = 'test_pg__live'
+        qb = pg.QueryViewBuilder(vn)
+
+        with self.assertRaises(ValueError):
+            TestEntity.qbuilder.delete(None)
+
+        with self.assertRaises(ValueError):
+            TestEntity.qbuilder.delete()
+
+        q, params = qb.delete(12)
+        self.assertTrue(len(params) == 1)
+        self.assertEqual(params, (12, ))
+        self.assertTrue(vn in q)
+        self.assertTrue('DELETE FROM' in q)
+        self.assertTrue('WHERE "entity_id" = %s' in q)
+
+        ids = (eid1, eid2)
+        q, params = qb.delete(*ids)
+        self.assertTrue(len(params) == 1)
+        self.assertEqual(params, (ids, ))
+        self.assertTrue('WHERE "entity_id" IN %s' in q)
+
+        with self.pool.transaction() as cursor:
+            cursor.execute(q, params)
+
+        with self.pool.transaction() as cursor:
+            q, params = TestEntity.qbuilder.by_id(*ids)
+            res = cursor.execute(q, params)
+            res = res.all()
+
+            self.assertTrue(len(res) == 0)

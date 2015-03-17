@@ -50,6 +50,19 @@ class QueryViewBuilder(object):
         q = q.format(target=target, placeholders=','.join(placeholders))
         return (q, params)
 
+    def delete(self, *ids):
+        # TODO chunks
+        if not ids or not all(ids):
+            raise ValueError(
+                'at least one "entity_id" must be defined for delete')
+        target = self._target
+        op = '=' if len(ids) == 1 else 'IN'
+        params = ids if len(ids) == 1 else (ids, )
+        where = 'WHERE "entity_id" {op} %s'.format(op=op)
+        q = 'DELETE FROM "{target}" {where};'
+        q = q.format(target=target, where=where)
+        return (q, params)
+
 
 class QueryBuilderDescr(object):
 
