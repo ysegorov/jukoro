@@ -5,8 +5,7 @@
 
 class QueryViewBuilder(object):
 
-    def __init__(self, klass, db_target):
-        self._klass = klass
+    def __init__(self, db_target):
         self._target = db_target
 
     @property
@@ -16,7 +15,7 @@ class QueryViewBuilder(object):
     def by_id(self, entity_id):
         if not entity_id:
             raise ValueError('"entity_id" must be defined to get instance')
-        klass, target = self._klass, self._target
+        target = self._target
         q = 'SELECT {fields} FROM "{target}" WHERE "entity_id" = %s;'
         q = q.format(target=target, fields=self.fields)
         return (q, (entity_id, ))
@@ -58,7 +57,7 @@ class QueryBuilderDescr(object):
             raise AttributeError(
                 'This is a "{}" class attribute, not an instance one'.format(
                     owner.__name__))
-        return self._qb(owner, self._target_name)
+        return self._qb(self._target_name)
 
     def __set__(self, instance, value):
         raise AttributeError
