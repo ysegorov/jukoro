@@ -12,13 +12,18 @@ class QueryViewBuilder(object):
     def fields(self):
         return '"%s"' % '","'.join(['entity_id', 'doc'])
 
-    def by_id(self, entity_id):
-        if not entity_id:
-            raise ValueError('"entity_id" must be defined to get instance')
+    def by_id(self, *ids):
+        # TODO chunks
+        if not ids or not all(ids):
+            raise ValueError(
+                'at least one "entity_id" must be defined to get instance')
         target = self._target
-        q = 'SELECT {fields} FROM "{target}" WHERE "entity_id" = %s;'
-        q = q.format(target=target, fields=self.fields)
-        return (q, (entity_id, ))
+        op = '=' if len(ids) == 1 else 'IN'
+        params = ids if len(ids) == 1 else (ids, )
+        where = 'WHERE "entity_id" {op} %s'.format(op=op)
+        q = 'SELECT {fields} FROM "{target}" {where};'
+        q = q.format(target=target, fields=self.fields, where=where)
+        return (q, params)
 
     def create(self, *entities):
         # TODO chunks
