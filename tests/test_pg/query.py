@@ -298,3 +298,35 @@ class TestQueryViewBuilder(BaseWithPool):
 
             res = cursor.execute(q, params).all()
             self.assertEqual(len(res), attr4_attr4_2_lte_cnt)
+
+    def test_select_offset_limit(self):
+
+        vn = 'test_pg__live'
+        qb = pg.QueryViewBuilder(vn, TestEntity)
+        limit, offset = 30, 40
+
+        q, params = qb.select(limit=limit)
+        self.assertTrue('LIMIT' in q)
+
+        q1, params1 = qb.select({'attr2': 'mistery'}, limit=limit)
+        self.assertTrue('LIMIT' in q1)
+        self.assertFalse('OFFSET' in q1)
+
+        q2, params2 = qb.select({'attr2': 'mistery'},
+                                limit=limit, offset=offset)
+        self.assertTrue('LIMIT %s' in q2)
+        self.assertTrue('OFFSET %s' in q2)
+
+        with self.pool.transaction() as cursor:
+
+            res = cursor.execute(q, params)
+            res = res.all()
+            self.assertEqual(len(res), limit)
+
+            res = cursor.execute(q1, params1)
+            res = res.all()
+            self.assertEqual(len(res), limit)
+
+            res = cursor.execute(q2, params2)
+            res = res.all()
+            self.assertEqual(len(res), limit)
