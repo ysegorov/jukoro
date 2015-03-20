@@ -120,10 +120,41 @@ def _transform_op(op):
 
 
 def _transform_conditions(klass, *conditions):
+    # examples for conditions and transformed sql results:
+    #   - simple AND
+    #       (dict1, dict2...) => ("doc" @> dict1) AND ("doc" @> dict2)
+    #
+    #   - complex AND
+    #       (((attr1, 'lte', val1), (attr2, 'ne', val2))) becomes
+    #           (("doc"->>attr1)::INT <= val1) AND
+    #               (("doc"->>attr2)::INT != val2)
+    #
+    #   - complex OR
+    #       (((attr1, 'lte', val1), ), ((attr2, 'ne', val2), )) becomes
+    #           (("doc"->>attr1)::INT <= val1) OR
+    #               (("doc"->>attr2)::INT != val2)
+    #
+    #   - complex OR with AND
+    #       (((attr1, 'lte', val1), (attr1, 'ne', val1_2)),
+    #        ((attr2, 'ne', val2), (attr2, 'gt', val2_2))) becomes
+    #           (("doc"->>attr1)::INT <= val1
+    #               AND
+    #            ("doc"->>attr1)::INT != val1_2)
+    #           OR
+    #           (("doc"->>attr2)::INT != val2
+    #               AND
+    #            ("doc"->>attr2)::INT > val2_2)
+
     if not conditions:
         return '', []
     placeholders, params = [], []
     for cond in conditions:
+        # cond must be a dict for simple AND
+        #   or tuple of tuples with condition triplets, i.e.
+        #   (triplet1, triplet2...)
+        #   where triplet is a tuple in form (attr, op, value)
+
+        # TODO own exception
         if isinstance(cond, dict):
             placeholders.append('("doc" @> %s)')
             params.append(cond)

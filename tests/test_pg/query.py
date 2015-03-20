@@ -198,6 +198,11 @@ class TestQueryViewBuilder(BaseWithPool):
                 prev = entity
 
     def test_select_where(self):
+
+        # TODO rewrite for separate tests
+
+        random.seed()
+
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
         raw = 'SELECT ("doc"->>\'attr4\')::INT AS attr4, COUNT("id") as cnt ' \
@@ -208,8 +213,14 @@ class TestQueryViewBuilder(BaseWithPool):
             values = [(x['attr4'], x['cnt']) for x in res]
 
             attr3_values = defaultdict(int)
+
             attr4, cnt = random.choice(values)
+            attr4_2, cnt_2 = random.choice(values)
             attr4_lte_cnt = sum(x[1] for x in values if x[0] <= attr4)
+            attr4_ne_cnt = sum(x[1] for x in values if x[0] != attr4)
+            attr4_attr4_2_lte_cnt = sum(
+                x[1] for x in values if x[0] <= attr4 or x[0] <= attr4_2)
+
             q, params = qb.select({'attr4': attr4})
 
             res = cursor.execute(q, params).all()
@@ -228,6 +239,13 @@ class TestQueryViewBuilder(BaseWithPool):
             for row in res:
                 self.assertEqual(attr4, row['doc']['attr4'])
                 attr3_values[row['doc']['attr3']] += 1
+
+            q, params = qb.select(
+                (('attr4', 'ne', attr4), )
+            )
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), attr4_ne_cnt)
 
             q, params = qb.select(
                 (('attr4', 'lte', attr4), )
@@ -253,3 +271,30 @@ class TestQueryViewBuilder(BaseWithPool):
             for row in res:
                 self.assertEqual(row['doc']['attr4'], attr4)
                 self.assertEqual(row['doc']['attr3'], attr3)
+
+            q, params = qb.select(
+                (('attr4', 'eq', attr4), ),
+                (('attr4', 'eq', attr4_2), )
+            )
+            self.assertTrue('OR' in q)
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), cnt + cnt_2)
+
+            q, params = qb.select(
+                {'attr4': attr4},
+                {'attr4': attr4_2}
+            )
+            self.assertTrue('OR' in q)
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), cnt + cnt_2)
+
+            q, params = qb.select(
+                (('attr4', 'lte', attr4), ),
+                (('attr4', 'lte', attr4_2), )
+            )
+            self.assertTrue('OR' in q)
+
+            res = cursor.execute(q, params).all()
+            self.assertEqual(len(res), attr4_attr4_2_lte_cnt)
