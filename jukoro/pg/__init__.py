@@ -35,3 +35,6 @@ psycopg2.extensions.register_adapter(dict, JukoroPgJson)
 psycopg2.extras.register_default_json(globally=True, loads=json.loads)
 psycopg2.extras.register_default_jsonb(globally=True, loads=json.loads)
 psycopg2.extras.register_uuid()
+
+
+json.register_encoder_by_meta(type(BaseEntity), lambda x: x.entity_id)

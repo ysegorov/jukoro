@@ -7,31 +7,77 @@ import decimal
 import json as _json
 
 
-load = _json.load
-loads = _json.loads
+D = decimal.Decimal
 
-JSONDecoder = _json.JSONDecoder
+
+_encoders = {}
+_encoders_by_meta = {}
+
+
+class JSONDecoder(_json.JSONDecoder):
+    """
+        JSON decoder that converts number in JSON to Decimal in Python
+    """
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('parse_float', D)
+        super(JSONDecoder, self).__init__(*args, **kwargs)
 
 
 class JSONEncoder(_json.JSONEncoder):
     """
-    JSON encoder that converts additional Python types to JSON.
+        JSON encoder that converts additional Python types to JSON
     """
     def default(self, obj):
-        """
-        Converts datetime objects to ISO-compatible strings
-            during json serialization
-        Converts Decimal objects to floats during json serialization
-        """
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return float(obj)
-        else:
-            return None
+        _type = type(obj)
+        _meta = type(_type)
+        if _meta in _encoders_by_meta:
+            return _encoders_by_meta[_meta](obj)
+        if _type in _encoders:
+            return _encoders[_type](obj)
+        return super(JSONEncoder, self).default(obj)
 
 
-def _patch_kwargs(**kwargs):
+def register_encoder(klass, encoder_fn):
+    _encoders[klass] = encoder_fn
+
+
+def unregister_encoder(klass):
+    return _encoders.pop(klass, None)
+
+
+def register_encoder_by_meta(meta, encoder_fn):
+    _encoders_by_meta[meta] = encoder_fn
+
+
+def unregister_encoder_by_meta(meta):
+    return _encoders_by_meta.pop(meta, None)
+
+
+register_encoder(datetime.datetime, lambda x: x.isoformat())
+register_encoder(D, float)
+
+
+def dump(*args, **kwargs):
+    kwargs = _patch_encoder_kwargs(**kwargs)
+    return _json.dump(*args, **kwargs)
+
+
+def dumps(*args, **kwargs):
+    kwargs = _patch_encoder_kwargs(**kwargs)
+    return _json.dumps(*args, **kwargs)
+
+
+def load(*args, **kwargs):
+    kwargs = _patch_decoder_kwargs(**kwargs)
+    return _json.load(*args, **kwargs)
+
+
+def loads(*args, **kwargs):
+    kwargs = _patch_decoder_kwargs(**kwargs)
+    return _json.loads(*args, **kwargs)
+
+
+def _patch_encoder_kwargs(**kwargs):
     if 'cls' not in kwargs:
         kwargs['cls'] = JSONEncoder
     if 'ensure_ascii' not in kwargs:
@@ -39,11 +85,7 @@ def _patch_kwargs(**kwargs):
     return kwargs
 
 
-def dump(*args, **kwargs):
-    kwargs = _patch_kwargs(**kwargs)
-    return _json.dump(*args, **kwargs)
-
-
-def dumps(*args, **kwargs):
-    kwargs = _patch_kwargs(**kwargs)
-    return _json.dumps(*args, **kwargs)
+def _patch_decoder_kwargs(**kwargs):
+    if 'cls' not in kwargs:
+        kwargs['cls'] = JSONDecoder
+    return kwargs
