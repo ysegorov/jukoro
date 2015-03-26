@@ -6,7 +6,10 @@ import datetime
 import decimal
 import json as _json
 
+from jukoro import arrow
 
+
+A = arrow.JuArrow
 D = decimal.Decimal
 
 
@@ -53,7 +56,12 @@ def unregister_encoder_by_meta(meta):
     return _encoders_by_meta.pop(meta, None)
 
 
-register_encoder(datetime.datetime, lambda x: x.isoformat())
+def isoformat(dt):
+    return dt.isoformat()
+
+
+register_encoder(datetime.datetime, isoformat)
+register_encoder(A, isoformat)
 register_encoder(D, float)
 
 
