@@ -12,8 +12,9 @@ requires = [
     'redis>=2.10.0',
     'hiredis>=0.1.0',
     'psycopg2>=2.5.0',
-    'pytz>=2014.10',
+    # 'pytz>=2014.10',
     'base32-crockford>=0.2.0',
+    'arrow>=0.5.4',
 ]
 
 setup(
