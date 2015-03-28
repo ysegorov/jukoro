@@ -101,6 +101,15 @@ class BaseEntity(object):
         q, params = klass.qbuilder.delete(self._entity_id)
         cursor.execute(q, params)
 
+    def serialize(self):
+        # TODO
+        pass
+
+    @classmethod
+    def deserialize(self):
+        # TODO
+        pass
+
 
 class BaseUser(BaseEntity):
     username = Attr(title='Username',
