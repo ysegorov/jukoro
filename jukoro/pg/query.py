@@ -104,25 +104,27 @@ class QueryBuilderDescr(object):
         raise AttributeError
 
 
+OPS = {
+    'eq': '=',
+    'ne': '!=',
+    'in': 'IN',
+    'lt': '<',
+    'gt': '>',
+    'lte': '<=',
+    'gte': '>=',
+}
+
+
 def _transform_op(op):
-    ops = {
-        'eq': '=',
-        'ne': '!=',
-        'in': 'IN',
-        'lt': '<',
-        'gt': '>',
-        'lte': '<=',
-        'gte': '>=',
-    }
-    if op not in ops:
+    if op not in OPS:
         raise ValueError('Unknown operator "{}"'.format(op))
-    return ops.get(op)
+    return OPS.get(op)
 
 
 def _transform_conditions(klass, *conditions):
     # examples for conditions and transformed sql results:
-    #   - simple AND
-    #       (dict1, dict2...) => ("doc" @> dict1) AND ("doc" @> dict2)
+    #   - simple AND within dict and OR between dicts
+    #       (dict1, dict2...) => ("doc" @> dict1) OR ("doc" @> dict2)
     #
     #   - complex AND
     #       (((attr1, 'lte', val1), (attr2, 'ne', val2))) becomes
@@ -173,6 +175,17 @@ def _transform_conditions(klass, *conditions):
 
 
 def _transform_order_by(klass, fields):
+    """
+        :klass:   BaseEntity-based class
+        :fields:  string for a single field ascending sorting or
+                  tuple of tuples for complex sorting
+
+                  examples:
+
+                      'first_name'
+                      ('first_name', 'last_name')
+                      (('created', 'DESC'), ('accessed', 'ASC'))
+    """
     spec = '("doc"->>\'{attr}\')::{cast} {direction}'
     if isinstance(fields, basestring):
         cast = (getattr(klass, fields)).db_cast()
@@ -187,5 +200,5 @@ def _transform_order_by(klass, fields):
                 attr, direction = f, 'ASC'
             cast = (getattr(klass, attr)).db_cast()
             res.append(spec.format(attr=attr, cast=cast, direction=direction))
-        return 'ORDER BY %s' % ', '.join(res)
+        return ' ORDER BY %s' % ', '.join(res)
     return ''

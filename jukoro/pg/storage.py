@@ -267,10 +267,13 @@ class Index(object):
 
     @property
     def spec(self):
+        attr = self._attr
         spec = '("doc"->>\'{attr}\')'
-        if self._attr.is_int:
+        if attr.is_int:
             spec = '(%s::INTEGER)' % spec
-        return spec.format(attr=self._attr.slug)
+        if attr.is_timestamptz:
+            spec = '(%s::BIGINT)' % spec
+        return spec.format(attr=attr.slug)
 
     def sql_vars(self):
         return {

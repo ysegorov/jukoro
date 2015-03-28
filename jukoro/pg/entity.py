@@ -74,6 +74,12 @@ class BaseEntity(object):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
+    def db_val(self):
+        return self.entity_id
+
+    def json_val(self):
+        return self.entity_id
+
     @classmethod
     def by_id(cls, cursor, entity_id):
         q, params = cls.qbuilder.by_id(entity_id)

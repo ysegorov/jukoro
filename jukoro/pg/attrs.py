@@ -36,12 +36,18 @@ class Attr(object):
         return self.db_type == 'text'
 
     @property
+    def is_timestamptz(self):
+        return self.db_type == 'timestamptz'
+
+    @property
     def idx(self):
         return self._idx
 
     def db_cast(self):
         if self.is_int:
-            return 'INT'
+            return 'INTEGER'
+        if self.is_timestamptz:
+            return 'BIGINT'
         return 'TEXT'
 
     def __cmp__(self, other):
