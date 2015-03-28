@@ -36,3 +36,19 @@ class TestArrow(TestCase):
         dt = arrow.get(iso)
         self.assertIsInstance(dt, arrow.JuArrow)
         self.assertEqual(dt.isoformat(), iso)
+
+    def test_db_val(self):
+        dt = arrow.utcnow()
+        db_val = dt.db_val()
+
+        self.assertIsInstance(db_val, basestring)
+        self.assertIsInstance(arrow.from_db_val(db_val), arrow.JuArrow)
+        self.assertEqual(arrow.from_db_val(db_val), dt)
+
+    def test_json_val(self):
+        dt = arrow.utcnow()
+        json_val = dt.json_val()
+
+        self.assertIsInstance(json_val, basestring)
+        self.assertIsInstance(arrow.from_json_val(json_val), arrow.JuArrow)
+        self.assertEqual(arrow.from_json_val(json_val), dt)

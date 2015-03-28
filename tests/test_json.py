@@ -15,24 +15,19 @@ D = decimal.Decimal
 
 class TestJson(TestCase):
 
-    def setUp(self):
-        self.entity_encoder = json.unregister_encoder_by_meta(
-            type(pg.BaseEntity))
-
-    def tearDown(self):
-        self._register_encoders()
-
-    def _register_encoders(self):
-        json.register_encoder_by_meta(type(pg.BaseEntity), self.entity_encoder)
-
     def test_arrow(self):
         utcnow = arrow.utcnow()
+        now = arrow.now()
         a = {
-            'a': utcnow
+            'a': utcnow,
+            'b': now,
         }
         jsoned = json.dumps(a)
         b = json.loads(jsoned)
-        self.assertEqual(utcnow.isoformat(), b['a'])
+        self.assertEqual(utcnow, arrow.get(b['a']))
+        self.assertEqual(utcnow.to('local'), arrow.get(b['a']))
+        self.assertEqual(now, arrow.get(b['b']))
+        self.assertEqual(now.to('UTC'), arrow.get(b['b']))
 
     def test_dict(self):
         now = datetime.datetime.now()
@@ -56,10 +51,6 @@ class TestJson(TestCase):
         c = {
             'e': pg.BaseUser(123)
         }
-        with self.assertRaises(TypeError):
-            json.dumps(c)
-
-        self._register_encoders()
 
         d = json.loads(json.dumps(c))
         self.assertEqual(c['e'].entity_id, d['e'])
