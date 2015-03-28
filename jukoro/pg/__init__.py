@@ -23,18 +23,19 @@ from jukoro.pg.query import QueryViewBuilder, QueryBuilderDescr
 from jukoro.pg.utils import pg_uri_to_kwargs
 
 
-class JukoroPgJson(psycopg2.extras.Json):
+class PgJsonEncoder(json.JSONEncoder):
+    json_attr = 'db_val'
+
+
+class PgJson(psycopg2.extras.Json):
     def dumps(self, obj):
-        return json.dumps(obj)
+        return json.dumps(obj, cls=PgJsonEncoder)
 
 
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
-psycopg2.extensions.register_adapter(dict, JukoroPgJson)
+psycopg2.extensions.register_adapter(dict, PgJson)
 psycopg2.extras.register_default_json(globally=True, loads=json.loads)
 psycopg2.extras.register_default_jsonb(globally=True, loads=json.loads)
 psycopg2.extras.register_uuid()
-
-
-json.register_encoder_by_meta(type(BaseEntity), lambda x: x.entity_id)
