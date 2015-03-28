@@ -9,6 +9,7 @@ import unittest
 
 import psycopg2.extensions
 
+from jukoro import arrow
 from jukoro import pg
 
 from .base import Base, BaseWithPool
@@ -180,7 +181,8 @@ class TestHistory(BaseWithPool):
             'attr3': 'Mercedes',
             'attr4': 22,
             'attr5': 122,
-            'attr6': False
+            'attr6': False,
+            'attr7': arrow.utcnow(),
         }
         cnt = 3
 
@@ -196,11 +198,11 @@ class TestHistory(BaseWithPool):
             doc1 = self._get(cursor, entity_id)[0]
 
             self.assertFalse(doc1['attr6'])
-            self.assertFalse('attr7' in doc)
+            self.assertFalse('attr8' in doc)
 
             for __ in xrange(cnt):
                 time.sleep(0.125)
-                doc['attr7'] = int(time.time())
+                doc['attr8'] = int(time.time())
                 self._update(cursor, entity_id, doc)
 
             self._delete(cursor, entity_id)

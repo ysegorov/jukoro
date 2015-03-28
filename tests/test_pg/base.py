@@ -21,6 +21,8 @@ class TestEntity(pg.BaseEntity):
                     db_type='int', db_not_null=True)
     attr6 = pg.Attr(title='Attr 6',
                     db_type='int', db_not_null=False)
+    attr7 = pg.Attr(title='Attr 7',
+                    db_index=True, db_type='timestamptz', db_not_null=True)
 
 
 class Base(unittest.TestCase):
@@ -90,7 +92,7 @@ class BaseWithPool(Base):
     def entity_id(self):
         if self._entity_id is None:
             first_id, last_id = self.first_id(), self.last_id()
-            self._entity_id = random.randint(first_id, last_id)
+            self._entity_id = random.randint(first_id + 1, last_id - 1)
         return self._entity_id
 
     def _get(self, cursor, entity_id):

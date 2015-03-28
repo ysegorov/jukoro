@@ -6,6 +6,7 @@ import random
 
 from .base import TestEntity, Base, BaseWithPool
 
+from jukoro import arrow
 from jukoro import pg
 
 
@@ -81,7 +82,9 @@ class TestQueryViewBuilder(BaseWithPool):
             entity.update(attr1='miracle-%s' % idx,
                           attr2='musician-%s' % idx,
                           attr3='boundary-%s' % idx,
-                          attr4=idx, attr5=idx * 100)
+                          attr4=idx,
+                          attr5=idx * 100,
+                          attr7=arrow.utcnow())
 
         with self.pool.transaction() as cursor:
             q, params = TestEntity.qbuilder.create(a, b, c)
@@ -91,6 +94,10 @@ class TestQueryViewBuilder(BaseWithPool):
             res = sorted(res, key=lambda x: x['doc']['attr4'])
             aa, bb, cc = res
             aa, bb, cc = TestEntity(**aa), TestEntity(**bb), TestEntity(**cc)
+
+            aa.attr7 = arrow.from_db_val(aa.attr7)
+            bb.attr7 = arrow.from_db_val(bb.attr7)
+            cc.attr7 = arrow.from_db_val(cc.attr7)
 
             self.assertEqual(a.attr1, aa.attr1)
             self.assertEqual(a.attr4, aa.attr4)
@@ -113,12 +120,15 @@ class TestQueryViewBuilder(BaseWithPool):
                 cursor.execute(q, params)
 
             a.update(attr1='miracle', attr2='musician',
-                     attr3='boundary', attr4=5, attr5=26)
+                     attr3='boundary', attr4=5, attr5=26,
+                     attr7=arrow.utcnow())
             q, params = TestEntity.qbuilder.create(a)
             self.assertTrue(len(params) == 1)
 
             res = cursor.execute(q, params)
             b = TestEntity(**res.get())
+
+            b.attr7 = arrow.from_db_val(b.attr7)
 
             self.assertIsNot(b.entity_id, None)
             self.assertTrue(b.entity_id > last_id)
@@ -174,7 +184,7 @@ class TestQueryViewBuilder(BaseWithPool):
 
             self.assertTrue(len(res) == 0)
 
-    def test_select_order_by(self):
+    def test_select_order_by_asc(self):
 
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
@@ -182,7 +192,7 @@ class TestQueryViewBuilder(BaseWithPool):
         q, params = qb.select(order_by='attr4')
         self.assertEqual(
             'SELECT "entity_id","doc" FROM "test_pg__live" '
-            'ORDER BY ("doc"->>\'attr4\')::INT ASC;', q)
+            'ORDER BY ("doc"->>\'attr4\')::INTEGER ASC;', q)
 
         with self.pool.transaction() as cursor:
             res = cursor.execute(q, params)
@@ -197,6 +207,30 @@ class TestQueryViewBuilder(BaseWithPool):
                     self.assertLessEqual(prev.attr4, entity.attr4)
                 prev = entity
 
+    def test_select_order_by_desc(self):
+
+        vn = 'test_pg__live'
+        qb = pg.QueryViewBuilder(vn, TestEntity)
+
+        q, params = qb.select(order_by=(('attr7', 'DESC'), ))
+        self.assertEqual(
+            'SELECT "entity_id","doc" FROM "test_pg__live" '
+            'ORDER BY ("doc"->>\'attr7\')::BIGINT DESC;', q)
+
+        with self.pool.transaction() as cursor:
+            res = cursor.execute(q, params)
+            res = res.all()
+
+            self.assertTrue(len(res) > 0)
+
+            prev = None
+            for row in res:
+                entity = TestEntity(**row)
+                if prev is not None:
+                    self.assertLessEqual(arrow.from_db_val(entity.attr7),
+                                         arrow.from_db_val(prev.attr7))
+                prev = entity
+
     def test_select_where(self):
 
         # TODO rewrite for separate tests
@@ -205,7 +239,8 @@ class TestQueryViewBuilder(BaseWithPool):
 
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
-        raw = 'SELECT ("doc"->>\'attr4\')::INT AS attr4, COUNT("id") as cnt ' \
+        raw = 'SELECT ("doc"->>\'attr4\')::INTEGER AS attr4, ' \
+            'COUNT("id") as cnt ' \
             'FROM test_pg__live GROUP BY attr4;'
 
         with self.pool.transaction() as cursor:
@@ -216,6 +251,9 @@ class TestQueryViewBuilder(BaseWithPool):
 
             attr4, cnt = random.choice(values)
             attr4_2, cnt_2 = random.choice(values)
+            if attr4_2 == attr4:
+                while attr4_2 != attr4:
+                    attr4_2, cnt_2 = random.choice(values)
             attr4_lte_cnt = sum(x[1] for x in values if x[0] <= attr4)
             attr4_ne_cnt = sum(x[1] for x in values if x[0] != attr4)
             attr4_attr4_2_lte_cnt = sum(

@@ -10,6 +10,7 @@ import warnings
 
 import psycopg2
 
+from jukoro import arrow
 from jukoro import pg
 from jukoro.pg import storage as pg_storage
 
@@ -107,19 +108,22 @@ def mock_data(cnt):
 
     _letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-    def _d(attr1, attr3):
+    def _d(attr1, attr3, attr7):
         return {
             'attr1': random.choice(attr1),
             'attr2': 'mistery',
             'attr3': random.choice(attr3),
             'attr4': random.randint(1, 100),
             'attr5': random.randint(1000, 100000),
+            'attr7': random.choice(attr7),
         }
 
     attr1 = [''.join(random.sample(_letters, 5)) for __ in xrange(100)]
     attr3 = [''.join(random.sample(_letters, 7)) for __ in xrange(200)]
+    st = datetime.datetime(2013, 1, 1, 1, 1, 1)
+    attr7 = list(arrow.JuArrow.range('day', st, limit=400))
 
     k = ','.join('(%s)' for ___ in xrange(cnt))
-    v = tuple(_d(attr1, attr3) for ___ in xrange(cnt))
+    v = tuple(_d(attr1, attr3, attr7) for ___ in xrange(cnt))
 
     return 'INSERT INTO test_pg ("doc") VALUES {};'.format(k), v
