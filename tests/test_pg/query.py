@@ -192,7 +192,7 @@ class TestQueryViewBuilder(BaseWithPool):
         q, params = qb.select(order_by='attr4')
         self.assertEqual(
             'SELECT "entity_id","doc" FROM "test_pg__live" '
-            'ORDER BY ("doc"->>\'attr4\')::INTEGER ASC;', q)
+            'ORDER BY ("doc"->>\'attr4\')::BIGINT ASC;', q)
 
         with self.pool.transaction() as cursor:
             res = cursor.execute(q, params)
@@ -239,7 +239,7 @@ class TestQueryViewBuilder(BaseWithPool):
 
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
-        raw = 'SELECT ("doc"->>\'attr4\')::INTEGER AS attr4, ' \
+        raw = 'SELECT ("doc"->>\'attr4\')::BIGINT AS attr4, ' \
             'COUNT("id") as cnt ' \
             'FROM test_pg__live GROUP BY attr4;'
 
