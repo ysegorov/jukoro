@@ -4,13 +4,52 @@ import logging
 
 from .base import Base, TestEntity
 
+from jukoro import arrow
 from jukoro import pg
 from jukoro.pg import storage
 
 
-__all__ = ['TestAttrs']
+__all__ = ['TestAttr', 'TestAttrs']
 
 logger = logging.getLogger(__name__)
+
+
+class TestAttr(Base):
+
+    def test_a(self):
+        a = pg.Attr(title='a')
+        self.assertIs(a.value_type, unicode)
+        self.assertFalse(a.is_int)
+        self.assertTrue(a.is_text)
+        self.assertFalse(a.db_index)
+        self.assertTrue(a.db_not_null)
+        self.assertEqual(a.db_cast(), 'TEXT')
+        self.assertEqual(a.title, 'a')
+        self.assertGreater(a.idx, 0)
+
+    def test_b(self):
+        b = pg.Attr(title='b', value_type=int)
+        self.assertIs(b.value_type, int)
+        self.assertTrue(b.is_int)
+        self.assertFalse(b.is_text)
+        self.assertEqual(b.db_cast(), 'BIGINT')
+
+    def test_c(self):
+        c = pg.Attr(title='c', value_type=arrow.JuArrow)
+        self.assertIs(c.value_type, arrow.JuArrow)
+        self.assertTrue(c.is_int)
+        self.assertFalse(c.is_text)
+        self.assertEqual(c.db_cast(), 'BIGINT')
+
+    def test_d(self):
+        c = pg.Attr(title='c', value_type=arrow.JuArrow)
+        d = pg.Attr(title='c', value_type=int)
+        self.assertTrue(c.idx < d.idx)
+        self.assertTrue(c < d)
+        self.assertFalse(c == d)
+
+        with self.assertRaises(RuntimeError):
+            c < 4
 
 
 class TestAttrs(Base):
