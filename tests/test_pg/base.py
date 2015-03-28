@@ -93,7 +93,8 @@ class BaseWithPool(Base):
     def entity_id(self):
         if self._entity_id is None:
             first_id, last_id = self.first_id(), self.last_id()
-            self._entity_id = random.randint(first_id + 1, last_id - 1)
+            # last 100 of entities to test deletes
+            self._entity_id = random.randint(first_id + 1, last_id - 101)
         return self._entity_id
 
     def _get(self, cursor, entity_id):

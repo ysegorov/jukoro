@@ -150,8 +150,13 @@ class TestQueryViewBuilder(BaseWithPool):
         random.seed()
 
         first_id, last_id = self.first_id(), self.last_id()
-        eid1 = random.randint(first_id + 1, last_id - 1)
-        eid2 = random.randint(first_id + 1, last_id - 1)
+        eid1 = random.randint(last_id - 100, last_id - 1)
+        eid2 = random.randint(last_id - 100, last_id - 1)
+        if eid2 == eid1:
+            while eid2 == eid1:
+                eid2 = random.randint(last_id - 100, last_id - 1)
+        self.assertNotEqual(eid1, eid2)
+
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
 
@@ -183,6 +188,28 @@ class TestQueryViewBuilder(BaseWithPool):
             res = res.all()
 
             self.assertTrue(len(res) == 0)
+
+        a = TestEntity()
+        a.update(attr1='miracle', attr2='musician',
+                 attr3='boundary', attr4=5, attr5=26,
+                 attr7=arrow.utcnow())
+
+        with self.pool.transaction() as cursor:
+            b = a.save(cursor)
+
+            self.assertIsNot(a, b)
+
+            with self.assertRaises(ValueError):
+                a.delete(cursor)
+
+            c = TestEntity.by_id(cursor, b.entity_id)
+
+            self.assertEqual(b.doc, c.doc)
+
+            b.delete(cursor)
+
+            with self.assertRaises(pg.PgDoesNotExistError):
+                TestEntity.by_id(cursor, c.entity_id)
 
     def test_select_order_by_asc(self):
 
@@ -252,8 +279,10 @@ class TestQueryViewBuilder(BaseWithPool):
             attr4, cnt = random.choice(values)
             attr4_2, cnt_2 = random.choice(values)
             if attr4_2 == attr4:
-                while attr4_2 != attr4:
+                while attr4_2 == attr4:
                     attr4_2, cnt_2 = random.choice(values)
+            self.assertNotEqual(attr4, attr4_2)
+
             attr4_lte_cnt = sum(x[1] for x in values if x[0] <= attr4)
             attr4_ne_cnt = sum(x[1] for x in values if x[0] != attr4)
             attr4_attr4_2_lte_cnt = sum(

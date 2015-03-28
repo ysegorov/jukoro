@@ -96,6 +96,11 @@ class BaseEntity(object):
         logger.debug('res: %s', res)
         return klass(**res)
 
+    def delete(self, cursor):
+        klass = type(self)
+        q, params = klass.qbuilder.delete(self._entity_id)
+        cursor.execute(q, params)
+
 
 class BaseUser(BaseEntity):
     username = Attr(title='Username',
