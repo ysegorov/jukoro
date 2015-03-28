@@ -268,12 +268,8 @@ class Index(object):
     @property
     def spec(self):
         attr = self._attr
-        spec = '("doc"->>\'{attr}\')'
-        if attr.is_int:
-            spec = '(%s::INTEGER)' % spec
-        if attr.is_arrow:
-            spec = '(%s::BIGINT)' % spec
-        return spec.format(attr=attr.slug)
+        spec = '(("doc"->>\'{attr}\')::{cast})'
+        return spec.format(attr=attr.slug, cast=attr.db_cast())
 
     def sql_vars(self):
         return {
@@ -290,7 +286,7 @@ class Index(object):
 CONSTRAINT_INT = """
 ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}
     CHECK (("doc"->>'{attr}') IS NOT NULL
-    AND ("doc"->>'{attr}')::INTEGER >= 0);
+    AND ("doc"->>'{attr}')::BIGINT >= 0);
 """
 CONSTRAINT_TEXT = """
 ALTER TABLE "{db_table}" ADD CONSTRAINT {constraint_name}

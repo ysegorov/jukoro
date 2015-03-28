@@ -30,15 +30,11 @@ class Attr(object):
 
     @property
     def is_int(self):
-        return self.value_type is int
+        return self.value_type in (int, arrow.JuArrow)
 
     @property
     def is_text(self):
         return self.value_type in (str, unicode)
-
-    @property
-    def is_arrow(self):
-        return self.value_type is arrow.JuArrow
 
     @property
     def idx(self):
@@ -46,8 +42,6 @@ class Attr(object):
 
     def db_cast(self):
         if self.is_int:
-            return 'INTEGER'
-        if self.is_arrow:
             return 'BIGINT'
         return 'TEXT'
 
