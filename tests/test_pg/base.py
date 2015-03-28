@@ -3,6 +3,7 @@
 import random
 import unittest
 
+from jukoro import arrow
 from jukoro import pg
 
 
@@ -10,19 +11,19 @@ class TestEntity(pg.BaseEntity):
     db_table = 'test_pg'
 
     attr1 = pg.Attr(title='Attr 1',
-                    db_index=True, db_type='text', db_not_null=True, minlen=4)
+                    db_index=True, db_not_null=True, minlen=4)
     attr2 = pg.Attr(title='Attr 2',
-                    db_index=True, db_type='text', db_not_null=True, minlen=6)
+                    db_index=True, db_not_null=True, minlen=6)
     attr3 = pg.Attr(title='Attr 3',
-                    db_type='text', db_not_null=True)
+                    db_not_null=True)
     attr4 = pg.Attr(title='Attr 4',
-                    db_index=True, db_type='int', db_not_null=True)
+                    db_index=True, value_type=int, db_not_null=True)
     attr5 = pg.Attr(title='Attr 5',
-                    db_type='int', db_not_null=True)
+                    value_type=int, db_not_null=True)
     attr6 = pg.Attr(title='Attr 6',
-                    db_type='int', db_not_null=False)
+                    value_type=int, db_not_null=False)
     attr7 = pg.Attr(title='Attr 7',
-                    db_index=True, db_type='timestamptz', db_not_null=True)
+                    db_index=True, value_type=arrow.JuArrow, db_not_null=True)
 
 
 class Base(unittest.TestCase):

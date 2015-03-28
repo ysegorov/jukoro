@@ -4,6 +4,8 @@ import logging
 
 from itertools import count
 
+from jukoro import arrow
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +14,12 @@ _counter = count()
 
 
 class Attr(object):
-    __slots__ = ('db_not_null', 'db_index', 'db_type',
+    __slots__ = ('db_not_null', 'db_index', 'value_type',
                  'title', 'maxlen', 'minlen', 'wrapper', '_idx')
 
     def __init__(self, **kwargs):
         self.db_index = kwargs.pop('db_index', False)
-        self.db_type = kwargs.pop('db_type', False)
+        self.value_type = kwargs.pop('value_type', unicode)
         self.db_not_null = kwargs.pop('db_not_null', True)
         self.title = kwargs.pop('title', 'undefined')
         self.maxlen = kwargs.pop('maxlen', 0)
@@ -28,16 +30,15 @@ class Attr(object):
 
     @property
     def is_int(self):
-        dbt = (self.db_type or 'undef').lower()
-        return dbt in ['int', 'integer', 'bigint']
+        return self.value_type is int
 
     @property
     def is_text(self):
-        return self.db_type == 'text'
+        return self.value_type in (str, unicode)
 
     @property
-    def is_timestamptz(self):
-        return self.db_type == 'timestamptz'
+    def is_arrow(self):
+        return self.value_type is arrow.JuArrow
 
     @property
     def idx(self):
@@ -46,7 +47,7 @@ class Attr(object):
     def db_cast(self):
         if self.is_int:
             return 'INTEGER'
-        if self.is_timestamptz:
+        if self.is_arrow:
             return 'BIGINT'
         return 'TEXT'
 

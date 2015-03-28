@@ -99,7 +99,7 @@ class BaseEntity(object):
 
 class BaseUser(BaseEntity):
     username = Attr(title='Username',
-                    db_index=True, db_type='text', db_not_null=True, minlen=4)
+                    db_index=True, db_not_null=True, minlen=4)
     email = Attr(title='Email',
-                 db_index=True, db_type='text', db_not_null=True, minlen=6)
-    password = Attr(title='Password', db_type='text', db_not_null=True)
+                 db_index=True, db_not_null=True, minlen=6)
+    password = Attr(title='Password', db_not_null=True)

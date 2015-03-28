@@ -271,7 +271,7 @@ class Index(object):
         spec = '("doc"->>\'{attr}\')'
         if attr.is_int:
             spec = '(%s::INTEGER)' % spec
-        if attr.is_timestamptz:
+        if attr.is_arrow:
             spec = '(%s::BIGINT)' % spec
         return spec.format(attr=attr.slug)
 
