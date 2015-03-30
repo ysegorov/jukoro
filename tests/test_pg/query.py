@@ -101,13 +101,13 @@ class TestQueryViewBuilder(BaseWithPool):
 
             self.assertEqual(a.attr1, aa.attr1)
             self.assertEqual(a.attr4, aa.attr4)
-            self.assertEqual(a.doc, aa.doc)
+            self.assertDocEqual(a.doc, aa.doc)
             self.assertEqual(b.attr2, bb.attr2)
             self.assertEqual(b.attr5, bb.attr5)
-            self.assertEqual(b.doc, bb.doc)
+            self.assertDocEqual(b.doc, bb.doc)
             self.assertEqual(c.attr3, cc.attr3)
             self.assertEqual(c.attr5, cc.attr5)
-            self.assertEqual(c.doc, cc.doc)
+            self.assertDocEqual(c.doc, cc.doc)
 
     def test_update(self):
         last_id = self.last_id()
@@ -132,7 +132,7 @@ class TestQueryViewBuilder(BaseWithPool):
 
             self.assertIsNot(b.entity_id, None)
             self.assertTrue(b.entity_id > last_id)
-            self.assertEqual(a.doc, b.doc)
+            self.assertDocEqual(a.doc, b.doc)
             self.assertEqual(b.attr1, 'miracle')
             self.assertEqual(b.attr2, 'musician')
             self.assertEqual(b.attr3, 'boundary')

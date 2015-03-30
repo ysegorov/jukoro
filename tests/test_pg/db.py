@@ -233,7 +233,7 @@ class TestAutoCommit(BaseWithPool):
             doc2 = self._get(cur2, entity_id)[0]
 
             self.assertEqual(doc1.get('attr6'), doc2.get('attr6'))
-            self.assertEqual(doc1, doc2)
+            self.assertDocEqual(doc1, doc2)
 
     def test_b(self):
 
@@ -257,7 +257,7 @@ class TestAutoCommit(BaseWithPool):
 
             doc3 = self._get(cur3, entity_id)[0]
             self.assertEqual(doc1.get('attr6'), doc3.get('attr6'))
-            self.assertEqual(doc1, doc3)
+            self.assertDocEqual(doc1, doc3)
 
 
 class TestManualCommit(BaseWithPool):
@@ -285,7 +285,7 @@ class TestManualCommit(BaseWithPool):
         with self.pool.transaction() as cur3:
             doc3 = self._get(cur3, entity_id)[0]
 
-        self.assertEqual(doc1, doc3)
+        self.assertDocEqual(doc1, doc3)
 
         cur1.close()
         conn.close()

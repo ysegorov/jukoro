@@ -133,3 +133,13 @@ class BaseWithPool(Base):
         cursor.execute('DELETE FROM "test_pg__live" WHERE "entity_id" = %s;',
                        (entity_id, ))
         return list(cursor.queries)
+
+    def assertDocEqual(self, doc1, doc2):
+        self.assertIsInstance(doc1, dict)
+        self.assertIsInstance(doc2, dict)
+
+        to_skip = ('_created', '_updated', '_deleted')
+        for k in doc1:
+            if k in to_skip:
+                continue
+            self.assertEqual(doc1[k], doc2.get(k))
