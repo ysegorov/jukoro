@@ -64,6 +64,37 @@ EXCEPTION WHEN duplicate_table THEN
     -- do nothing, it's already there
 END $$;
 
+-- json related functions
+-- http://michael.otacoo.com/postgresql-2/manipulating-jsonb-data-with-key-unique/
+CREATE OR REPLACE FUNCTION public.jsonb_merge(jsonb, jsonb)
+RETURNS jsonb
+IMMUTABLE
+LANGUAGE sql
+AS $$
+    WITH ju AS
+        (SELECT * FROM jsonb_each($1)
+            UNION ALL
+        SELECT * FROM jsonb_each($2))
+     SELECT json_object_agg(key, value)::jsonb FROM ju;
+$$;
+
+CREATE OR REPLACE FUNCTION public.jsonb_merge_key_value_pairs(jsonb, variadic text[])
+RETURNS jsonb
+IMMUTABLE
+LANGUAGE sql
+AS $$
+    SELECT public.jsonb_merge($1, json_object($2)::jsonb);
+$$;
+
+-- convert current timestamp to iso 8601
+CREATE OR REPLACE FUNCTION public.current_timestamp_to_iso8601()
+RETURNS text
+IMMUTABLE
+LANGUAGE sql
+AS $$
+    SELECT to_char(CURRENT_TIMESTAMP at TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"');
+$$;
+
 -- basic entity table (for inheritance)
 CREATE TABLE IF NOT EXISTS "entity" (
     "id" serial PRIMARY KEY,
@@ -125,6 +156,36 @@ class BaseTrigger(BaseSql):
                                                  suffix=self.suffix)
 
 
+TRIGGER_INSERT = """
+-- {db_view} trigger on insert
+CREATE OR REPLACE FUNCTION {name}() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO "{db_table}" ("doc") VALUES
+        (public.jsonb_merge_key_value_pairs(
+         NEW.doc, '_created', public.current_timestamp_to_iso8601(),
+                  '_updated', public.current_timestamp_to_iso8601()))
+        RETURNING * INTO NEW;
+
+    -- RAISE WARNING 'inserted %', NEW;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER "{name}"
+    INSTEAD OF INSERT
+    ON "{db_view}"
+    FOR EACH ROW
+    EXECUTE PROCEDURE {name}();
+
+"""
+
+
+class TriggerOnInsertSql(BaseTrigger):
+    query = TRIGGER_INSERT
+    suffix = 'insert'
+
+
 TRIGGER_UPDATE = """
 -- {db_view} trigger on update
 CREATE OR REPLACE FUNCTION {name}() RETURNS TRIGGER AS $$
@@ -132,7 +193,15 @@ BEGIN
     UPDATE "{db_table}" SET "entity_end" = CURRENT_TIMESTAMP
         WHERE "id" = OLD.id;
     INSERT INTO "{db_table}" ("entity_id", "doc")
-        VALUES (NEW.entity_id, NEW.doc);
+        VALUES (NEW.entity_id,
+                public.jsonb_merge_key_value_pairs(
+                    NEW.doc,
+                    '_updated',
+                    public.current_timestamp_to_iso8601()))
+        RETURNING * INTO NEW;
+
+    -- RAISE WARNING 'updated %', NEW;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -156,7 +225,13 @@ TRIGGER_DELETE = """
 CREATE OR REPLACE FUNCTION {name}() RETURNS TRIGGER AS $$
 BEGIN
     IF OLD.id IS NOT NULL THEN
-        UPDATE "{db_table}" SET "entity_end" = CURRENT_TIMESTAMP
+        UPDATE "{db_table}"
+            SET ("entity_end", "doc") = (
+                CURRENT_TIMESTAMP,
+                public.jsonb_merge_key_value_pairs(
+                    OLD.doc,
+                    '_deleted',
+                    public.current_timestamp_to_iso8601()))
             WHERE "id" = OLD.id;
     END IF;
     RETURN NULL;
@@ -193,6 +268,7 @@ class Schema(object):
 class Table(object):
     sql_create_table = SqlDescr(CreateTableSql)
     sql_create_view = SqlDescr(CreateViewSql)
+    sql_trigger_on_insert = SqlDescr(TriggerOnInsertSql)
     sql_trigger_on_update = SqlDescr(TriggerOnUpdateSql)
     sql_trigger_on_delete = SqlDescr(TriggerOnDeleteSql)
 
@@ -223,7 +299,9 @@ class Table(object):
 
     @property
     def triggers(self):
-        for nm in ('sql_trigger_on_update', 'sql_trigger_on_delete'):
+        for nm in ('sql_trigger_on_insert',
+                   'sql_trigger_on_update',
+                   'sql_trigger_on_delete'):
             yield getattr(self, nm)
 
     @property
