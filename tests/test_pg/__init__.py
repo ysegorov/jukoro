@@ -35,6 +35,7 @@ SCHEMA = 'public'
 FIRST_ID = LAST_ID = None
 MOCK_COUNT = 4000
 
+KEEP_TEST_SCHEMA = os.environ.get('KEEP_SCHEMA', False)
 SQL_TEARDOWN = """
 DROP SCHEMA {schema} CASCADE;
 """
@@ -83,7 +84,7 @@ def setUp():
 
 
 def tearDown():
-    if not IS_ONLINE:
+    if not IS_ONLINE or KEEP_TEST_SCHEMA:
         return
     kwargs = pg.pg_uri_to_kwargs(URI)
     schema = kwargs['schema']
