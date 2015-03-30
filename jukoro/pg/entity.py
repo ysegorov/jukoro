@@ -96,7 +96,7 @@ class BaseEntity(object):
 
     def delete(self, cursor):
         klass = type(self)
-        q, params = klass.qbuilder.delete(self._entity_id)
+        q, params = klass.qbuilder.delete(self)
         cursor.execute(q, params)
 
     def serialize(self):

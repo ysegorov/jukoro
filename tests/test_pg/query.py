@@ -166,22 +166,23 @@ class TestQueryViewBuilder(BaseWithPool):
         with self.assertRaises(ValueError):
             TestEntity.qbuilder.delete()
 
-        q, params = qb.delete(12)
+        q, params = qb.delete(TestEntity(12))
         self.assertTrue(len(params) == 1)
         self.assertEqual(params, (12, ))
         self.assertTrue(vn in q)
         self.assertTrue('DELETE FROM' in q)
         self.assertTrue('WHERE "entity_id" = %s' in q)
 
-        ids = (eid1, eid2)
+        ids = (TestEntity(eid1), TestEntity(eid2))
         q, params = qb.delete(*ids)
         self.assertTrue(len(params) == 1)
-        self.assertEqual(params, (ids, ))
+        self.assertEqual(params, ((eid1, eid2), ))
         self.assertTrue('WHERE "entity_id" IN %s' in q)
 
         with self.pool.transaction() as cursor:
             cursor.execute(q, params)
 
+        ids = (eid1, eid2)
         with self.pool.transaction() as cursor:
             q, params = TestEntity.qbuilder.by_id(*ids)
             res = cursor.execute(q, params)

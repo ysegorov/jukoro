@@ -51,14 +51,18 @@ class QueryViewBuilder(object):
         q = q.format(target=target, placeholders=','.join(placeholders))
         return (q, params)
 
-    def delete(self, *ids):
+    def delete(self, *entities):
         # TODO chunks
-        if not ids or not all(ids):
+        entities = filter(None, entities)
+        if not entities or not all(x.entity_id for x in entities):
             raise ValueError(
-                'at least one "entity_id" must be defined for delete')
+                'All entities to delete must have "entity_id" defined')
         target = self._target
-        op = '=' if len(ids) == 1 else 'IN'
-        params = ids if len(ids) == 1 else (ids, )
+        op = '=' if len(entities) == 1 else 'IN'
+        params = tuple(x.entity_id for x in entities)
+        if len(entities) > 1:
+            # it must be only one parameter
+            params = (params, )
         where = 'WHERE "entity_id" {op} %s'.format(op=op)
         q = 'DELETE FROM "{target}" {where};'
         q = q.format(target=target, where=where)
