@@ -38,3 +38,29 @@ class TestBaseEntity(Base):
 
         self.assertTrue(hasattr(self.User, 'db_view'))
         self.assertEqual(self.User.db_view.name, 'test_user1__live')
+
+    def test_compare(self):
+        a = self.User(123, {'first_name': 'A', 'last_name': 'B'})
+        b = self.User(123, {'first_name': 'A', 'last_name': 'B',
+                            'username': 'u'})
+        c = self.User(123, {'first_name': 'A', 'last_name': 'B'})
+        d = self.User(122, {'first_name': 'A', 'last_name': 'B'})
+        self.assertEqual(a, c)
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(a, d)
+        self.assertNotEqual(b, c)
+        self.assertNotEqual(b, d)
+
+        with self.assertRaises(RuntimeError):
+            a == 1
+        with self.assertRaises(RuntimeError):
+            a != 1
+
+    def test_serialize_deserialize(self):
+        a = self.User(123, {'first_name': 'A', 'last_name': 'B'})
+        jsoned = a.serialize()
+        self.assertIsInstance(jsoned, basestring)
+
+        b = self.User.deserialize(jsoned)
+        self.assertIsInstance(b, self.User)
+        self.assertEqual(a, b)

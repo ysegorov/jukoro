@@ -2,6 +2,8 @@
 
 import logging
 
+from jukoro import json
+
 from jukoro.pg.attrs import Attr, AttrDescr, AttrsDescr
 from jukoro.pg.query import QueryBuilderDescr
 from jukoro.pg import storage
@@ -98,13 +100,31 @@ class BaseEntity(object):
         cursor.execute(q, params)
 
     def serialize(self):
-        # TODO
-        pass
+        return json.dumps({'entity_id': self._entity_id, 'doc': self._doc})
 
     @classmethod
-    def deserialize(self):
-        # TODO
-        pass
+    def deserialize(cls, value):
+        return cls(**json.loads(value))
+
+    def __eq__(self, other):
+        klass = type(self)
+        if isinstance(other, klass):
+            attrs = klass.attrs
+            return self.entity_id == other.entity_id and all(
+                getattr(self, x.slug) == getattr(other, x.slug) for x in attrs)
+        raise RuntimeError(
+            'Unable to compare types "{}" and "{}"'.format(klass,
+                                                           type(other)))
+
+    def __ne__(self, other):
+        klass = type(self)
+        if isinstance(other, klass):
+            attrs = klass.attrs
+            return self.entity_id != other.entity_id or any(
+                getattr(self, x.slug) != getattr(other, x.slug) for x in attrs)
+        raise RuntimeError(
+            'Unable to compare types "{}" and "{}"'.format(klass,
+                                                           type(other)))
 
 
 class BaseUser(BaseEntity):
