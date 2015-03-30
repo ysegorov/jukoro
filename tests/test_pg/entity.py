@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
+from jukoro import arrow
+
 from jukoro import pg
 from jukoro.pg import storage
 
-from .base import Base
+from .base import Base, BaseWithPool, TestEntity
 
 
-__all__ = ['TestBaseEntity']
+__all__ = ['TestBaseEntity', 'TestEntityMeta']
 
 
 class TestBaseEntity(Base):
@@ -64,3 +66,103 @@ class TestBaseEntity(Base):
         b = self.User.deserialize(jsoned)
         self.assertIsInstance(b, self.User)
         self.assertEqual(a, b)
+
+
+class TestEntityMeta(BaseWithPool):
+
+    def test_created(self):
+
+        with self.assertRaises(AttributeError):
+
+            class A(pg.BaseEntity):
+                _created = pg.Attr(title='created')
+
+        a = TestEntity()
+        self.assertTrue(hasattr(a, 'created'))
+        self.assertIsNone(a.created)
+
+        a.update(attr1='miracle-a',
+                 attr2='musician-a',
+                 attr3='boundary-a',
+                 attr4=1,
+                 attr5=101,
+                 attr7=arrow.utcnow())
+
+        with self.pool.transaction() as cursor:
+            a = a.save(cursor)
+
+            self.assertIsNotNone(a.created)
+
+    def test_updated(self):
+
+        with self.assertRaises(AttributeError):
+
+            class B(pg.BaseEntity):
+                _updated = pg.Attr(title='updated')
+
+        b = TestEntity()
+        self.assertTrue(hasattr(b, 'updated'))
+        self.assertIsNone(b.updated)
+
+        b.update(attr1='miracle-b',
+                 attr2='musician-b',
+                 attr3='boundary-b',
+                 attr4=2,
+                 attr5=102,
+                 attr7=arrow.utcnow())
+
+        with self.pool.transaction() as cursor:
+            b = b.save(cursor)
+
+            self.assertIsNotNone(b.entity_id)
+            self.assertIsNotNone(b.created)
+            self.assertIsNotNone(b.updated)
+            self.assertEqual(b.created, b.updated)
+
+        with self.pool.transaction() as cursor:
+            b.update(attr5=1022)
+            bb = b.save(cursor)
+            self.assertIsNotNone(bb.updated)
+            self.assertEqual(b.entity_id, bb.entity_id)
+            self.assertEqual(b.created, bb.created)
+            self.assertNotEqual(b.updated, bb.updated)
+
+    def test_deleted(self):
+
+        with self.assertRaises(AttributeError):
+
+            class C(pg.BaseEntity):
+                _deleted = pg.Attr(title='deleted')
+
+        c = TestEntity()
+        self.assertTrue(hasattr(c, 'deleted'))
+        self.assertIsNone(c.deleted)
+
+        c.update(attr1='miracle-c',
+                 attr2='musician-c',
+                 attr3='boundary-c',
+                 attr4=3,
+                 attr5=103,
+                 attr7=arrow.utcnow())
+
+        with self.pool.transaction() as cursor:
+            c = c.save(cursor)
+            cid = c.entity_id
+
+            self.assertEqual(c.created, c.updated)
+
+        with self.pool.transaction() as cursor:
+            c.delete(cursor)
+
+        with self.pool.transaction() as cursor:
+
+            with self.assertRaises(pg.PgDoesNotExistError):
+                c = TestEntity.by_id(cursor, cid)
+
+            q = 'SELECT * FROM "test_pg" WHERE "entity_id" = %s ' \
+                'ORDER BY "entity_end" DESC'
+            res = cursor.execute(q, (cid, )).all()
+            self.assertTrue(len(res) == 1)
+
+            doc = res[0]['doc']
+            self.assertTrue('_deleted' in doc)
