@@ -66,10 +66,6 @@ class BaseEntity(object):
     def doc(self):
         return self._doc
 
-    @property
-    def db_values(self):
-        return (self.entity_id, self.doc)
-
     def update(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
