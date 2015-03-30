@@ -26,6 +26,13 @@ class EntityMeta(type):
         if 'attrs' in dct:
             raise AttributeError(
                 '"attrs" attribute is reserved, take another one')
+
+        cud = {'_created', '_updated', '_deleted'}
+        cud.difference_update(dct.iterkeys())
+        if len(cud) != 3:
+            raise AttributeError(
+                '"_created", "_updated" and "_deleted" have been reserved, '
+                'take another names')
         if tn:
             if tn == 'entity':
                 raise AttributeError(
@@ -67,6 +74,19 @@ class BaseEntity(object):
     @property
     def doc(self):
         return self._doc
+
+    @property
+    def created(self):
+        return self._doc.get('_created')
+
+    @property
+    def updated(self):
+        return self._doc.get('_updated')
+
+    @property
+    def deleted(self):
+        # TODO (useless for now)
+        return self._doc.get('_deleted')
 
     def update(self, **kwargs):
         for k, v in kwargs.iteritems():
