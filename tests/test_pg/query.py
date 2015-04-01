@@ -23,7 +23,7 @@ class TestQueryBuilderDescr(Base):
         self.assertIsInstance(q, pg.QueryViewBuilder)
 
         with self.assertRaises(AttributeError):
-            pg.BaseEntity.qbuilder.by_id
+            pg.AbstractEntity.qbuilder.by_id
 
         a = TestEntity()
         with self.assertRaises(AttributeError):

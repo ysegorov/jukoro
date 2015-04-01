@@ -227,17 +227,17 @@ class TestRegistry(Base):
 
     def test(self):
 
-        class A(pg.BaseEntity):
+        class A(pg.AbstractEntity):
             pass
 
-        class B(pg.BaseEntity):
+        class B(pg.AbstractEntity):
             db_table = None
 
-        class C(pg.BaseEntity):
+        class C(pg.AbstractEntity):
             db_table = 'table_c'
             skip_registry = True
 
-        class D(pg.BaseEntity):
+        class D(pg.AbstractEntity):
             db_table = 'table_d'
 
         self.assertFalse(storage.is_registered(A))

@@ -57,7 +57,7 @@ class EntityMeta(type):
         return klass
 
 
-class BaseEntity(object):
+class AbstractEntity(object):
     __metaclass__ = EntityMeta
     __slots__ = ('_entity_id', '_doc')
 
@@ -147,7 +147,7 @@ class BaseEntity(object):
                                                            type(other)))
 
 
-class BaseUser(BaseEntity):
+class AbstractUser(AbstractEntity):
     username = Attr(title='Username',
                     db_index=True, db_not_null=True, minlen=4)
     email = Attr(title='Email',

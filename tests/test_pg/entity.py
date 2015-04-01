@@ -8,15 +8,15 @@ from jukoro.pg import storage
 from .base import Base, BaseWithPool, TestEntity
 
 
-__all__ = ['TestBaseEntity', 'TestEntityMeta']
+__all__ = ['TestAbstractEntity', 'TestEntityMeta']
 
 
-class TestBaseEntity(Base):
+class TestAbstractEntity(Base):
 
     @classmethod
     def setUpClass(cls):
 
-        class User(pg.BaseUser):
+        class User(pg.AbstractUser):
             db_table = 'test_user1'
 
             first_name = pg.Attr(title='First name')
@@ -30,13 +30,13 @@ class TestBaseEntity(Base):
         cls.User = None
 
     def test_db_table_attr(self):
-        self.assertFalse(hasattr(pg.BaseUser, 'db_table'))
+        self.assertFalse(hasattr(pg.AbstractUser, 'db_table'))
 
         self.assertTrue(hasattr(self.User, 'db_table'))
         self.assertEqual(self.User.db_table.name, 'test_user1')
 
     def test_db_view_attr(self):
-        self.assertFalse(hasattr(pg.BaseUser, 'db_view'))
+        self.assertFalse(hasattr(pg.AbstractUser, 'db_view'))
 
         self.assertTrue(hasattr(self.User, 'db_view'))
         self.assertEqual(self.User.db_view.name, 'test_user1__live')
@@ -74,7 +74,7 @@ class TestEntityMeta(BaseWithPool):
 
         with self.assertRaises(AttributeError):
 
-            class A(pg.BaseEntity):
+            class A(pg.AbstractEntity):
                 _created = pg.Attr(title='created')
 
         a = TestEntity()
@@ -97,7 +97,7 @@ class TestEntityMeta(BaseWithPool):
 
         with self.assertRaises(AttributeError):
 
-            class B(pg.BaseEntity):
+            class B(pg.AbstractEntity):
                 _updated = pg.Attr(title='updated')
 
         b = TestEntity()
@@ -131,7 +131,7 @@ class TestEntityMeta(BaseWithPool):
 
         with self.assertRaises(AttributeError):
 
-            class C(pg.BaseEntity):
+            class C(pg.AbstractEntity):
                 _deleted = pg.Attr(title='deleted')
 
         c = TestEntity()

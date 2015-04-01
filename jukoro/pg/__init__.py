@@ -14,7 +14,7 @@ from jukoro import json
 
 from jukoro.pg.attrs import Attr, AttrDescr
 from jukoro.pg.db import PgDbPool, PgConnection, PgTransaction, PgResult
-from jukoro.pg.entity import BaseEntity, BaseUser
+from jukoro.pg.entity import AbstractEntity, AbstractUser
 from jukoro.pg.exceptions import (
     PgError, PgUriError, PgAlreadyRegisteredError, PgPoolClosedError,
     PgConnectionClosedError, PgCursorClosedError, PgDoesNotExistError)

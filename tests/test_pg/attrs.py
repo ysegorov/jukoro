@@ -57,7 +57,7 @@ class TestAttrs(Base):
     @classmethod
     def setUpClass(cls):
 
-        class User(pg.BaseUser):
+        class User(pg.AbstractUser):
             db_table = 'test_user'
 
             first_name = pg.Attr(title='First name')
@@ -71,7 +71,7 @@ class TestAttrs(Base):
         cls.User = None
 
     def test_attrs_inheritance(self):
-        BU = pg.BaseUser
+        BU = pg.AbstractUser
 
         self.assertTrue(hasattr(BU, 'username'))
         self.assertTrue(hasattr(BU, 'email'))

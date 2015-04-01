@@ -180,7 +180,7 @@ def _transform_conditions(klass, *conditions):
 
 def _transform_order_by(klass, fields):
     """
-        :klass:   BaseEntity-based class
+        :klass:   AbstractEntity-based class
         :fields:  string for a single field ascending sorting or
                   tuple of tuples for complex sorting
 

@@ -49,7 +49,7 @@ class TestJson(TestCase):
 
     def test_pg(self):
         c = {
-            'e': pg.BaseUser(123)
+            'e': pg.AbstractUser(123)
         }
 
         d = json.loads(json.dumps(c))
