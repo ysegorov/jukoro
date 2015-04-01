@@ -28,8 +28,7 @@ class EntityMeta(type):
                 '"attrs" attribute is reserved, take another one')
 
         cud = {'_created', '_updated', '_deleted'}
-        cud.difference_update(dct.iterkeys())
-        if len(cud) != 3:
+        if cud.intersection(dct.iterkeys()):
             raise AttributeError(
                 '"_created", "_updated" and "_deleted" have been reserved, '
                 'take another names')
