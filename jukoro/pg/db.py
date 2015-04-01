@@ -17,25 +17,45 @@ from jukoro.pg.exceptions import (
 from jukoro.pg.utils import pg_uri_to_kwargs
 
 
+# block size for PostgreSQL fetched rows iteration
 BLOCK_SIZE = 2048
 
+# module level logger
 logger = logging.getLogger(__name__)
+# sql queries logger
 sql_logger = logging.getLogger('jukoro.pg.sql')
 
 
-def is_closed(inst, *args, **kwargs):
-    return getattr(inst, 'is_closed', False)
+def is_closed(instance, *args, **kwargs):
+    """
+    Helper function to test if some instance is closed (to be used with
+    ``raise_if`` decorator)
+
+    :param instance: some instance with ``is_closed`` property accessible
+    :returns:        value of ``instance.is_closed`` or False
+
+    """
+    return getattr(instance, 'is_closed', False)
 
 
+# decorator to test if cursor closed
 raise_if_cursor_closed = raise_if(PgCursorClosedError,
                                   'cursor closed', is_closed)
+# decorator to test if connection closed
 raise_if_connection_closed = raise_if(PgConnectionClosedError,
                                       'connection closed', is_closed)
+# decorator to test if pool closed
 raise_if_pool_closed = raise_if(PgPoolClosedError,
                                 'pool closed', is_closed)
 
 
 class PgResult(object):
+    """
+    Provides methods to work with query results
+
+    :param cursor: instance of `psycopg2.extensions.cursor`
+
+    """
 
     __slots__ = ('_cursor', )
 
@@ -44,10 +64,22 @@ class PgResult(object):
 
     @property
     def is_closed(self):
+        """
+        Returns current status of the instance
+
+        """
         return self._cursor is None
 
     @raise_if_cursor_closed
     def get(self):
+        """
+        Method to get first row from query result
+
+        :returns: fetched from db row
+        :rtype:   dict (`psycopg2.extras.RealDictCursor`)
+        :raises PgDoesNotExistError: if query returned no results
+
+        """
         try:
             return self[0]
         except psycopg2.ProgrammingError:
@@ -55,13 +87,32 @@ class PgResult(object):
 
     @raise_if_cursor_closed
     def all(self):
+        """
+        Method to fetch all rows from cursor
+
+        :returns: all rows fetched from db
+        :rtype:   list
+
+        """
         return self._cursor.fetchall()
 
     @raise_if_cursor_closed
     def block(self):
+        """
+        Method to fetch block of rows from cursor
+
+        :returns: block of rows fetched from db
+        :rtype:   list
+
+        """
         return self._cursor.fetchmany()
 
     def __iter__(self):
+        """
+        Generator function to iterate over the rows from db
+        (iterates using blocks to keep memory usage low if possible)
+
+        """
         # named cursor will transparently work the same way the client-side
         # cursor does
         block = self.block()
@@ -73,15 +124,36 @@ class PgResult(object):
     @property
     @raise_if_cursor_closed
     def rowcount(self):
+        """
+        Returns `psycopg2.extensions.cursor.rowcount` read-only attribute value
+
+        """
         return self._cursor.rowcount
 
     @raise_if_cursor_closed
     def __len__(self):
+        """
+        Magic method to get length of the instance
+
+        Returns number of rows fetched or affected by query
+        In case cursor has a name (ie it's a named cursor) return 0
+
+        """
         if self._cursor.name is not None:
             return 0
         return self._cursor.rowcount
 
     def __getitem__(self, value):
+        """
+        Magic method to provide access to specific row in results or
+        to slice query results
+
+        :param value: index (integer) or slice
+        :returns:     single row or list of rows
+
+        NB. doesn't support step value for slicing
+
+        """
         if isinstance(value, int):
             self.scroll(value)
             resp = self._cursor.fetchone()
@@ -100,10 +172,21 @@ class PgResult(object):
             return self._cursor.fetchmany(stop - start)
 
     def close(self):
+        """
+        Method to close results after processing (free cursor instance)
+
+        """
         self._cursor = None
 
     @raise_if_cursor_closed
     def scroll(self, pos):
+        """
+        Method to scroll to specific position within fetched results
+
+        :param pos: (int) position to scroll to
+        :raises PgDoesNotExistError: if position is unavailable
+
+        """
         try:
             self._cursor.scroll(pos, 'absolute')
         except (psycopg2.ProgrammingError, IndexError):
