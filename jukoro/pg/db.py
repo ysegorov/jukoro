@@ -638,6 +638,45 @@ class PgConnection(object):
 
 
 class PgDbPool(object):
+    """
+    Manages pool of ``PgConnection`` instances
+    In case all connections are busy (pool is exhausted) will transparently
+    create new ``PgConnection`` with ``autoclose=True`` parameter
+
+    :param uri:         connection string
+    :param pool_size:   size of pool to manage
+
+    Usage example::
+
+        >>> from jukoro import pg
+        >>> uri = 'postgresql://localhost/jukoro_test.test_schema'
+        >>> pool = pg.PgDbPool(uri)
+        >>> len(pool)
+        0
+        >>> with pool.transaction() as cursor:
+        ...     r = cursor.execute('SELECT \'{"a": 1}\'::json as "doc";')
+        ...     doc = r.get()
+        ...
+        >>> doc
+        {'doc': {u'a': 1}}
+        >>> len(pool)
+        5
+        >>> cursor.is_closed
+        True
+        >>> r.is_closed
+        True
+        >>> r.get()
+        Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "jukoro/decorators.py", line 146, in wrapper
+            raise exc_type(msg)
+        jukoro.pg.exceptions.PgCursorClosedError: cursor closed
+        >>> pool.close()
+        >>> len(pool)
+        0
+        >>>
+
+    """
 
     __slots__ = ('_uri', '_pool_size', '_pool',
                  '_warmed_up', '_closed', '_lock')
@@ -652,19 +691,41 @@ class PgDbPool(object):
 
     @property
     def is_closed(self):
+        """
+        Returns current state of instance
+
+        :rtype: boolean
+
+        """
         return self._closed
 
     @property
     def uri(self):
+        """
+        Returns connection string
+
+        :rtype: string
+
+        """
         return self._uri
 
     def __repr__(self):
         return '<PgDbPool("{}")> at {}'.format(self._uri, hex(id(self)))
 
     def __len__(self):
+        """
+        Returns current actual length of pool
+
+        :rtype: int
+
+        """
         return len(self._pool)
 
     def close(self):
+        """
+        Closes pool closing all connections
+
+        """
         with self._lock:
             for __ in xrange(len(self._pool)):
                 conn = self._pool.pop()
@@ -674,11 +735,30 @@ class PgDbPool(object):
 
     @raise_if_pool_closed
     def transaction(self, **kwargs):
+        """
+        Creates new transaction selecting connection from pool and calling
+        ``PgConnection.transaction`` method
+
+        :param kwargs:  keyword arguments to initialize ``PgTransaction``
+                        instance
+        :returns:       transaction manager instance
+        :rtype:         ``PgTransaction``
+
+        """
         with self._lock:
             conn = self._get_conn()
         return conn.transaction(**kwargs)
 
     def _get_conn(self):
+        """
+        Returns connection from pool if available
+        Creates free connection if pool is exhausted
+        Warms up pool if it is not yet warmed up
+
+        :returns:   connection manager
+        :rtype:     ``PgConnection``
+
+        """
         if not self._warmed_up:
             self._warm_up()
         try:
@@ -689,13 +769,28 @@ class PgDbPool(object):
         return conn
 
     def _new_conn(self, **kwargs):
+        """
+        Returns new instance of ``PgConnection``
+
+        """
         return PgConnection(self._uri, **kwargs)
 
     @raise_if_pool_closed
     def unlock(self, conn):
+        """
+        Unlocks connection after usage
+        (returns it to pool and makes available to chose)
+
+        :param conn:    instance of ``PgConnection`` from the pool
+
+        """
         self._pool.push(conn)
 
     def _warm_up(self):
+        """
+        Warms up pool establishing connection to PostgreSQL
+
+        """
         self._warmed_up = True
         for __ in xrange(self._pool_size):
             self._pool.push(self._new_conn(pool=self))
@@ -704,5 +799,12 @@ class PgDbPool(object):
 
 
 def _connect(**kwargs):
+    """
+    Creates and returns new ``psycopg2.extensions.connection`` instance using
+    ``psycopg2.extras.RealDictCursor`` cursor factory by default
+
+    Cursor factory can be overriden in ``kwargs``
+
+    """
     kwargs.setdefault('cursor_factory', psycopg2.extras.RealDictCursor)
     return psycopg2.connect(**kwargs)
