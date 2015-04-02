@@ -49,7 +49,7 @@ _counter = count()
 
 class Attr(object):
     """
-    Provides an abstraction do describe
+    Provides an abstraction to describe
     :class:`Entity <jukoro.pg.entity.AbstractEntity>` attribute
 
     :param db_index:    boolean (optional) indicating there must be an index
