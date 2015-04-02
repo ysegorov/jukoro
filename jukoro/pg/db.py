@@ -4,12 +4,13 @@ Module to provide abstractions to work with PostgreSQL built on top of
 ``psycopg2.extensions.connection`` and ``psycopg2.extensions.cursor``.
 
 - :class:`PgDbPool <jukoro.pg.db.PgDbPool>` - abstraction for a pool of
-connections
+  connections
 - :class:`PgConnection <jukoro.pg.db.PgConnection>` - abstraction for a
-connection
+  connection
 - :class:`PgTransaction <jukoro.pg.db.PgTransaction>` - abstraction for a
-transaction
+  transaction
 - :class:`PgResult <jukoro.pg.db.PgResult>` - abstraction for results
+
 
 """
 
