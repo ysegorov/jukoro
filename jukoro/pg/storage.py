@@ -20,7 +20,7 @@ class SqlDescr(object):
         raise AttributeError('read only attribute')
 
 
-class BaseSql(object):
+class AbstractSql(object):
     query = None
 
     def __init__(self, instance):
@@ -121,7 +121,7 @@ CREATE INDEX ju_idx__{db_table}__entity_id ON "{db_table}"
 """
 
 
-class CreateTableSql(BaseSql):
+class CreateTableSql(AbstractSql):
     query = CREATE_TABLE
 
     @property
@@ -136,7 +136,7 @@ CREATE OR REPLACE VIEW "{db_view}" AS SELECT * FROM "{db_table}"
 """
 
 
-class CreateViewSql(BaseSql):
+class CreateViewSql(AbstractSql):
     query = CREATE_VIEW
 
     @property
@@ -144,7 +144,7 @@ class CreateViewSql(BaseSql):
         return self.instance.db_view.name
 
 
-class BaseTrigger(BaseSql):
+class BaseTrigger(AbstractSql):
 
     @property
     def name(self):

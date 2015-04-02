@@ -9,7 +9,7 @@ from jukoro.pg import storage
 
 
 __all__ = ['TestDBTableName', 'TestDBViewName', 'TestSyncDBEmptySchema',
-           'TestSyncDB', 'TestSqlDescr', 'TestBaseSql', 'TestRegistry']
+           'TestSyncDB', 'TestSqlDescr', 'TestAbstractSql', 'TestRegistry']
 
 
 class TestDBTableName(Base):
@@ -152,7 +152,7 @@ class TestSqlDescr(Base):
             B().a = True
 
 
-class TestBaseSql(Base):
+class TestAbstractSql(Base):
 
     def test(self):
 
@@ -161,20 +161,20 @@ class TestBaseSql(Base):
             def __init__(self, name):
                 self.name = name
 
-        class S1(storage.BaseSql):
+        class S1(storage.AbstractSql):
             query = 'hello'
 
-        class S2(storage.BaseSql):
+        class S2(storage.AbstractSql):
             query = 'hello {db_table}'
 
-        class S3(storage.BaseSql):
+        class S3(storage.AbstractSql):
             query = 'hello {db_view}'
 
-        class S4(storage.BaseSql):
+        class S4(storage.AbstractSql):
             query = 'hello {db_table} {db_view}'
 
         class A(object):
-            asql = storage.SqlDescr(storage.BaseSql)
+            asql = storage.SqlDescr(storage.AbstractSql)
             s1 = storage.SqlDescr(S1)
 
         class B(object):
@@ -203,7 +203,7 @@ class TestBaseSql(Base):
                 return Name('dv')
 
         a, b, c, d = A(), B(), C(), D()
-        self.assertIsInstance(a.asql, storage.BaseSql)
+        self.assertIsInstance(a.asql, storage.AbstractSql)
         self.assertIsInstance(a.s1, S1)
         self.assertIsInstance(b.s2, S2)
         self.assertIsInstance(c.s3, S3)
