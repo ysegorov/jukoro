@@ -207,6 +207,20 @@ class PgResult(object):
 
 
 class PgTransaction(object):
+    """
+    Provides a way to work with ``psycopg2.extensions.cursor``
+
+    :param conn:       instance of PgConnection
+    :param autocommit: set autocommit cursor mode on (True) or off (False)
+    :param named:      set named cursor mode on (True) or off (False)
+    :param block_size: set size of block to iterate over the results
+                       (defaults to BLOCK_SIZE)
+
+    NB. initializing with ``autocommit=True`` and ``named=True`` is wrong
+    because there is no autocommit mode for named cursor. ``named`` parameter
+    considered to have a higher priority.
+
+    """
 
     __slots__ = ('_pg_conn', '_autocommit', '_named', '_cursor', '_failed',
                  '_result', '_closed', '_queries', '_block_size')
@@ -223,10 +237,16 @@ class PgTransaction(object):
         self._failed = False
         self._result = None
         self._closed = False
-        self._queries = []
+        self._queries = []  # list of queries performed using this instance
         self._block_size = kwargs.get('block_size', BLOCK_SIZE)
 
     def _ensure_cursor(self):
+        """
+        Ensures instance have a properly initialized cursor
+
+        Cursor is created using ``PgConnection.cursor`` method
+
+        """
         if self._cursor is not None:
             return
         if self._named or not self._autocommit:
@@ -241,10 +261,22 @@ class PgTransaction(object):
             self._cursor.itersize = self._block_size
 
     def __enter__(self):
+        """
+        Magic method for instance to act as a context manager
+
+        """
         self._ensure_cursor()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
+        """
+        Magic method to cleanup on exit from context manager
+
+        Calls ``PgConnection.rollback`` method on case of exception or
+        ``PgConnection.commit`` method otherwise
+        (with respect to cursor ``named`` and ``autocommit`` settings)
+
+        """
         if exc_type is not None:
             logger.exception('exception executing query')
             if not self._autocommit:
@@ -256,35 +288,59 @@ class PgTransaction(object):
         self.close()
 
     @property
-    def block_size(self):
-        return self._block_size
-
-    @property
     def arraysize(self):
+        """
+        Returns value of ``arraysize`` property of cursor
+
+        """
         self._ensure_cursor()
         return self._cursor.arraysize
 
     @property
     def itersize(self):
+        """
+        Returns value of ``itersize`` property of cursor
+
+        """
         self._ensure_cursor()
         return self._cursor.itersize
 
     @property
     def is_closed(self):
+        """
+        Returns current state of instance
+
+        """
         return self._closed
 
     @property
     def queries(self):
+        """
+        Iterator over queries executed using this instance
+
+        """
         for q in self._queries:
             yield q
 
     def _should_close_cursor(self):
+        """
+        Internal method to detect if we should close cursor or
+        it was closed by server
+        (server can close named cursor in case of error)
+
+        :returns: boolean value
+
+        """
         if (not self._named and self._cursor is not None) \
                 or (self._named and not self._failed and self._queries):
             return True
         return False
 
     def close(self):
+        """
+        Closes instance (explicit way to free resources)
+
+        """
         self._close_result()
         if self._should_close_cursor():
             self._cursor.close()
@@ -294,20 +350,68 @@ class PgTransaction(object):
         self._closed = True
 
     def _close_result(self):
+        """
+        Closes result if any (explicit way to free resources)
+
+        """
         if self._result is not None:
             self._result.close()
             self._result = None
 
     def execute(self, query, params=None):
+        """
+        Executes query using provided parameters
+
+        :param query:   sql query to execute
+        :param params:  parameters for sql query (None or tuple)
+        :returns:       results of query
+        :rtype:         instance of ``PgResult``
+
+        """
         return self._exec(query, params=params)
 
     def execute_and_get(self, query, params=None):
+        """
+        Executes query using provided parameters
+        and returns first row from the results
+
+        :param query:   sql query to execute
+        :param params:  parameters for sql query (None or tuple)
+        :returns:       first row from the results of thq query
+        :rtype:         defaults to dict
+                        (due to ``psycopg2.extras.RealDictCursor``)
+
+        """
         return self.execute(query, params).get()
 
     def callproc(self, procname, params=None):
+        """
+        Executes stored procedure using provided parameters
+
+        :param procname:    stored procedure to execute
+        :param params:      parameters for procedure (None or tuple)
+        :returns:           results of stored procedure call
+        :rtype:             instance of ``PgResult``
+
+        """
+
         return self._exec(procname, params=params, proc=True)
 
     def _exec(self, q_or_proc, params=None, proc=False):
+        """
+        Internal method to actually execute query or stored procedure using
+        provided parameters
+        Before execution ensures we have a cursor and closes results in case
+        we already have them from previous exec
+        Stores query or stored procedure name in internal queries cache
+        (without parameters)
+
+        :param q_or_proc:   query or stored procedure to execute
+        :param params:      parameters for execution (None or tuple)
+        :returns:           results of call
+        :rtype:             instance of ``PgResult``
+
+        """
         self._ensure_cursor()
         fn = self._cursor.callproc if proc else self._cursor.execute
         sql_logger.debug(
