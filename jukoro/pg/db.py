@@ -249,6 +249,7 @@ class PgTransaction(object):
         """
         if self._cursor is not None:
             return
+        # FIXME check if _pg_conn is available
         if self._named or not self._autocommit:
             if self._pg_conn.autocommit:
                 self._pg_conn.autocommit = False
