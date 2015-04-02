@@ -144,7 +144,7 @@ class CreateViewSql(AbstractSql):
         return self.instance.db_view.name
 
 
-class BaseTrigger(AbstractSql):
+class AbstractTrigger(AbstractSql):
 
     @property
     def name(self):
@@ -152,7 +152,7 @@ class BaseTrigger(AbstractSql):
         return 'ju_before__{}__{}'.format(instance.db_view.name, self.suffix)
 
     def sql_vars(self):
-        return super(BaseTrigger, self).sql_vars(name=self.name,
+        return super(AbstractTrigger, self).sql_vars(name=self.name,
                                                  suffix=self.suffix)
 
 
@@ -181,7 +181,7 @@ CREATE TRIGGER "{name}"
 """
 
 
-class TriggerOnInsertSql(BaseTrigger):
+class TriggerOnInsertSql(AbstractTrigger):
     query = TRIGGER_INSERT
     suffix = 'insert'
 
@@ -215,7 +215,7 @@ CREATE TRIGGER "{name}"
 """
 
 
-class TriggerOnUpdateSql(BaseTrigger):
+class TriggerOnUpdateSql(AbstractTrigger):
     query = TRIGGER_UPDATE
     suffix = 'update'
 
@@ -246,7 +246,7 @@ CREATE TRIGGER "{name}"
 """
 
 
-class TriggerOnDeleteSql(BaseTrigger):
+class TriggerOnDeleteSql(AbstractTrigger):
     query = TRIGGER_DELETE
     suffix = 'delete'
 
