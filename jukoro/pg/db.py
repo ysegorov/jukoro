@@ -424,6 +424,71 @@ class PgTransaction(object):
 
 
 class PgConnection(object):
+    """
+    Provides a way to work with ``psycopg2.extensions.connection``
+
+    Lazily establishes connection to PostgreSQL and initializes
+    parameters of connection:
+
+    - client encoding to UTF8
+    - time zone to UTC
+    - search path to schema name from uri
+      (defaults to "public" if not specified)
+    - autocommit to True
+    - transaction isolation level to READ COMMITED
+
+    :param uri:         connection string
+    :param pool:        instance of ``PgDbPool`` to return connection to
+    :param autoclose:   if True closes connection after exit from transaction
+
+    Usage example::
+
+        >>> from jukoro import pg
+        >>> uri = 'postgresql://localhost/jukoro_test.test_schema'
+        >>> conn = pg.PgConnection(uri)
+        >>> conn
+        <PgConnection(uri="postgresql://localhost/jukoro_test.test_schema")> at 0x7fec361a7600
+        >>> conn.conn
+        <connection object at 0x7fec361be910; dsn: 'user=egorov host=localhost port=5432 dbname=jukoro_test', closed: 0>
+        >>> conn.conn
+        <connection object at 0x7fec361be910; dsn: 'user=egorov host=localhost port=5432 dbname=jukoro_test', closed: 0>
+        >>> with conn.transaction() as cursor:
+        ...     r = cursor.execute('SELECT \'{"a": 1}\' as "doc";')
+        ...     r
+        ...     doc = r.get()
+        ...
+        <jukoro.pg.db.PgResult object at 0x7fec3d05e638>
+        >>> doc
+        {'doc': '{"a": 1}'}
+        >>> r
+        <jukoro.pg.db.PgResult object at 0x7fec3d05e638>
+        >>> r.is_closed
+        True
+        >>> cursor
+        <jukoro.pg.db.PgTransaction object at 0x7fec361bd1b8>
+        >>> cursor.is_closed
+        True
+        >>> conn
+        <PgConnection(uri="postgresql://localhost/jukoro_test.test_schema")> at 0x7fec361a7600
+        >>> conn.is_closed
+        False
+        >>> conn.close()
+        >>> conn.is_closed
+        True
+        >>> cursor = conn.transaction()
+        Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "jukoro/decorators.py", line 146, in wrapper
+            raise exc_type(msg)
+        jukoro.pg.exceptions.PgConnectionClosedError: connection closed
+        >>> conn.conn
+        Traceback (most recent call last):
+        File "<stdin>", line 1, in <module>
+        File "jukoro/decorators.py", line 146, in wrapper
+            raise exc_type(msg)
+        jukoro.pg.exceptions.PgConnectionClosedError: connection closed
+
+    """
 
     __slots__ = ('_uri', '_schema', '_pg_pool', '_conn_kwargs', '_conn',
                  '_autoclose', '_closed')
@@ -447,6 +512,10 @@ class PgConnection(object):
     @property
     @raise_if_connection_closed
     def conn(self):
+        """
+        Initialize and return ``psycopg2.extensions.connection`` instance
+
+        """
         if self._conn is None:
             self._conn = _connect(**self._conn_kwargs)
             self._conn.set_session(
@@ -462,30 +531,64 @@ class PgConnection(object):
 
     @property
     def autocommit(self):
+        """
+        Returns connection ``autocommit`` property value
+
+        """
         return self.conn.autocommit
 
     @autocommit.setter
     def autocommit(self, value):
+        """
+        Sets connection ``autocommit`` property to value
+
+        :param value: boolean to set autocommit to
+
+        """
         self.conn.autocommit = value
 
     @property
     def is_closed(self):
+        """
+        Returns current state of instance
+
+        :rtype: boolean
+
+        """
         return self._closed
 
     @property
     def schema(self):
+        """
+        Returns schema name
+
+        :rtype: string
+
+        """
         return self._schema
 
     @raise_if_connection_closed
     def commit(self):
+        """
+        Calls connection ``commit`` method
+
+        """
         self.conn.commit()
 
     @raise_if_connection_closed
     def rollback(self):
+        """
+        Calls connection ``rollback`` method
+
+        """
         self.conn.rollback()
 
     @raise_if_connection_closed
     def close(self):
+        """
+        Closes instance (explicit way to free resources)
+
+        """
         if self._conn is not None:
             self._conn.close()
             self._conn = None
@@ -494,6 +597,14 @@ class PgConnection(object):
 
     @raise_if_connection_closed
     def cursor(self, named=False):
+        """
+        Creates new cursor for connection
+
+        :param named:   if True creates named cursor
+        :returns:       cursor
+        :rtype:         ``psycopg2.extensions.cursor``
+
+        """
         if named:
             return self.conn.cursor(
                 name=str(uuid.uuid4()), scrollable=True, withhold=True)
@@ -501,6 +612,11 @@ class PgConnection(object):
 
     @raise_if_connection_closed
     def reattach(self):
+        """
+        Reattaches connection to ``PgDbPool`` instance
+        or closes connection if ``autoclose`` was set to True
+
+        """
         if self._pg_pool is not None:
             self._pg_pool.unlock(self)
         elif self._autoclose:
@@ -508,6 +624,15 @@ class PgConnection(object):
 
     @raise_if_connection_closed
     def transaction(self, **kwargs):
+        """
+        Starts new transaction
+
+        :params kwargs: keyword arguments to initialize
+                        transaction manager with
+        :returns:       transaction manager
+        :rtype:         instance of ``PgTransaction``
+
+        """
         return PgTransaction(self, **kwargs)
 
 
