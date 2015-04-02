@@ -140,6 +140,7 @@ class Attr(object):
 class AttrDescr(object):
     """
     Python descriptor
+
     Works as a proxy for ``Attr`` instance
 
     :param slug:    ``Attr`` name
@@ -210,6 +211,7 @@ class AttrDescr(object):
 class AttrsDescr(object):
     """
     Python descriptor
+
     Works as an iterator over
     :class:`Entity <jukoro.pg.entity.AbstractEntity>` attributes
     (instances of :class:`AttrDescr <jukoro.pg.attrs.AttrDescr>`)
@@ -228,6 +230,11 @@ class AttrsDescr(object):
         self._sorted = False
 
     def __get__(self, instance, owner):
+        """
+        Iterator over attributes of
+        :class:`Entity <jukoro.pg.entity.AbstractEntity>`
+
+        """
         target = instance or owner
         if not self._sorted:
             self._slugs = sorted(self._slugs,
