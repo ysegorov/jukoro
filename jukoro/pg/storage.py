@@ -347,7 +347,7 @@ class Index(object):
     def spec(self):
         attr = self._attr
         spec = '(("doc"->>\'{attr}\')::{cast})'
-        return spec.format(attr=attr.slug, cast=attr.db_cast())
+        return spec.format(attr=attr.slug, cast=attr.db_cast)
 
     def sql_vars(self):
         return {

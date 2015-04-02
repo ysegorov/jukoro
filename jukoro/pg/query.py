@@ -168,7 +168,7 @@ def _transform_conditions(klass, *conditions):
             block = []
             for attr, op, value in cond:
                 op = _transform_op(op)
-                cast = (getattr(klass, attr)).db_cast()
+                cast = (getattr(klass, attr)).db_cast
                 block.append(
                     '("doc"->>\'{attr}\')::{cast} {op} %s'.format(
                         attr=attr, cast=cast, op=op))
@@ -192,7 +192,7 @@ def _transform_order_by(klass, fields):
     """
     spec = '("doc"->>\'{attr}\')::{cast} {direction}'
     if isinstance(fields, basestring):
-        cast = (getattr(klass, fields)).db_cast()
+        cast = (getattr(klass, fields)).db_cast
         return ' ORDER BY %s ' % spec.format(attr=fields,
                                              cast=cast, direction='ASC')
     elif isinstance(fields, (list, tuple)):
@@ -202,7 +202,7 @@ def _transform_order_by(klass, fields):
                 attr, direction = f
             else:
                 attr, direction = f, 'ASC'
-            cast = (getattr(klass, attr)).db_cast()
+            cast = (getattr(klass, attr)).db_cast
             res.append(spec.format(attr=attr, cast=cast, direction=direction))
         return ' ORDER BY %s' % ', '.join(res)
     return ''

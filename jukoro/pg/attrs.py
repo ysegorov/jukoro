@@ -116,6 +116,7 @@ class Attr(object):
         """
         return self._idx
 
+    @property
     def db_cast(self):
         """
         Returns string to cast db values to in queries
