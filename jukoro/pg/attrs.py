@@ -11,7 +11,9 @@ Provides generic classes to work with
   iterate over attributes connected to
   :class:`Entity <jukoro.pg.entity.AbstractEntity>`
 
-Usage example::
+Usage example:
+
+.. code-block:: python
 
     # -*- coding: utf-8 -*-
     # file: project/entities.py
@@ -30,6 +32,34 @@ Usage example::
                             db_index=True,
                             value_type=arrow.JuArrow,
                             db_not_null=True)
+
+In terminal:
+
+..code_block:: python
+
+    In [1]: from project.entities import User
+
+    In [2]: list(User.attrs)
+    Out[2]:
+    [<AttrDescr('username', <Attr(db_index=True, value_type=<type 'unicode'>, db_not_null=True, title='Username', maxlen=0, minlen=4, wrapper=None)>)>,
+    <AttrDescr('email', <Attr(db_index=True, value_type=<type 'unicode'>, db_not_null=True, title='Email', maxlen=0, minlen=6, wrapper=None)>)>,
+    <AttrDescr('password', <Attr(db_index=False, value_type=<type 'unicode'>, db_not_null=True, title='Password', maxlen=0, minlen=0, wrapper=None)>)>,
+    <AttrDescr('logged_in', <Attr(db_index=True, value_type=<class 'jukoro.arrow.base.JuArrow'>, db_not_null=True, title='Logged in', maxlen=0, minlen=0, wrapper=None)>)>]
+
+    In [3]: User.username
+    Out[3]: <AttrDescr('username', <Attr(db_index=True, value_type=<type 'unicode'>, db_not_null=True, title='Username', maxlen=0, minlen=4, wrapper=None)>)>
+
+    In [4]: u = User()
+
+    In [5]: u.username
+
+    In [6]: u.username = 'John'
+
+    In [7]: u.username
+    Out[7]: 'John'
+
+    In [8]: u.serialize()
+    Out[8]: '{"doc": {"username": "John"}, "entity_id": null}'
 
 """
 
@@ -65,6 +95,11 @@ class Attr(object):
                         text attribute
     :param wrapper:     callable (optional) to wrap entity attribute value
                         to when accessing it
+
+    NB. :class:`EntityMeta <jukoro.pg.entity.EntityMeta>` replaces ``Attr``
+    with ``AttrDescr`` to keep ``Attr`` name (slug) for a future reference
+    if needed (this way we can describe attribute and it's name only once and
+    there is no need to keep ``slug`` within ``Attr``)
 
     """
     __slots__ = ('db_not_null', 'db_index', 'value_type',
@@ -152,11 +187,6 @@ class AttrDescr(object):
 
     :param slug:    ``Attr`` name
     :param attr:    ``Attr`` instance
-
-    NB. :class:`EntityMeta <jukoro.pg.entity.EntityMeta>` replaces ``Attr``
-    with ``AttrDescr`` to keep ``Attr`` name (slug) for a future reference
-    if needed (this way we can describe attribute and it's name only once and
-    there is no need to keep ``slug`` within ``Attr``)
 
     """
     __slots__ = ('_slug', '_attr')
