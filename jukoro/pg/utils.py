@@ -15,14 +15,14 @@ def pg_uri_to_kwargs(uri):
     """
     Transforms connection string to dictionary consumable by
     :class:`~jukoro.pg.db.PgConnection` and
-    consumable by ``psycopg2.connect`` without ``scheme`` attribute
+    consumable by ``psycopg2.connect`` without ``schema`` attribute
 
     Provides defaults for:
 
     - "username" - defaults to os username
     - "port" - defaults to 5432
     - "dbname" - defaults to os username
-    - "scheme" - defaults to "public"
+    - "schema" - defaults to "public"
 
     :param uri:     connection string
     :returns:       dictionary with connection parameters
@@ -33,9 +33,9 @@ def pg_uri_to_kwargs(uri):
     - "hostname" - must be specified
     - "path" - must be specified and transforms to "dbname"
 
-    Scheme name can specified using dot notation::
+    Schema name can specified using dot notation::
 
-        'db_name.scheme_name'
+        'db_name.schema_name'
 
     Usage examples:
 
@@ -49,7 +49,7 @@ def pg_uri_to_kwargs(uri):
         'host': 'localhost',
         'password': None,
         'port': 5432,
-        'scheme': 'ju_20150403102042',
+        'schema': 'ju_20150403102042',
         'user': 'egorov'}
 
         >>> pprint(pg_uri_to_kwargs('postgresql://localhost/jukoro_test'))
@@ -57,7 +57,7 @@ def pg_uri_to_kwargs(uri):
         'host': 'localhost',
         'password': None,
         'port': 5432,
-        'scheme': 'public',
+        'schema': 'public',
         'user': 'egorov'}
 
         >>> pprint(pg_uri_to_kwargs('postgresql://localhost:5555/jukoro_test'))
@@ -65,7 +65,7 @@ def pg_uri_to_kwargs(uri):
         'host': 'localhost',
         'password': None,
         'port': 5555,
-        'scheme': 'public',
+        'schema': 'public',
         'user': 'egorov'}
 
         >>> pprint(pg_uri_to_kwargs('postgres://localhost:5555/jukoro_test'))
@@ -88,7 +88,7 @@ def pg_uri_to_kwargs(uri):
         ('password', 'password', lambda x: x and urllib.unquote(x)),
         ('port', 'port', lambda x: x and int(x) or 5432),
         ('path', 'dbname', lambda x: x and _dbname(x[1:]) or _user),
-        ('path', 'schema', lambda x: x and _scheme(x[1:]) or 'public'),
+        ('path', 'schema', lambda x: x and _schema(x[1:]) or 'public'),
     )
     return dict((k, cast(getattr(parsed, pk))) for (pk, k, cast) in mapped)
 
@@ -97,5 +97,5 @@ def _dbname(name):
     return name.partition('.')[0]
 
 
-def _scheme(name):
+def _schema(name):
     return name.partition('.')[-1]

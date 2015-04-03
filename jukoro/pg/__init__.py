@@ -15,7 +15,7 @@ Features:
   database triggers)
 - way to work using explicitly defined PostgreSQL schema in connection uri
 - global entities enumeration within single database (no repeated ids in
-  different tables in same/another scheme)
+  different tables in same/another schema)
 - table per entity approach using unified simple tables structure
   (all tables inherit from master ``entity`` table)
 - ``jsonb`` field to store entities data
