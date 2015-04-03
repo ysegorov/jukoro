@@ -42,6 +42,22 @@ You can keep PostgreSQL test db schema created during tests with
     $ KEEP_SCHEMA=y nosetests
 
 
+Docs
+====
+
+For proper ``ipython`` code blocks highlights within documentation run:
+
+.. code-block:: bash
+
+    $ pip install sphinx ipython jsonschema mistune
+
+
+Contributions
+=============
+
+Always welcomed.
+
+
 License
 =======
 
