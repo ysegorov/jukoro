@@ -84,7 +84,11 @@ def setUp():
 
 
 def tearDown():
-    if not IS_ONLINE or KEEP_TEST_SCHEMA:
+    if not IS_ONLINE:
+        return
+    if KEEP_TEST_SCHEMA:
+        warnings.warn(
+            'Keeping test schema as requested, uri=\'{}\''.format(URI))
         return
     kwargs = pg.pg_uri_to_kwargs(URI)
     schema = kwargs['schema']
