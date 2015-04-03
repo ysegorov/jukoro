@@ -35,7 +35,7 @@ Usage example:
 
 In terminal:
 
-..code_block:: python
+.. code-block:: ipythonconsole
 
     In [1]: from project.entities import User
 
