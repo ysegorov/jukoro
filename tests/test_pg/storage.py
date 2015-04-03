@@ -257,10 +257,10 @@ class TestRegistry(Base):
 
         storage.register(C)
 
-        with self.assertRaises(pg.PgAlreadyRegisteredError):
+        with self.assertRaises(pg.AlreadyRegistered):
             storage.register(C)
 
-        with self.assertRaises(pg.PgAlreadyRegisteredError):
+        with self.assertRaises(pg.AlreadyRegistered):
             storage.register(D)
 
         eclasses = self._entity_classes()

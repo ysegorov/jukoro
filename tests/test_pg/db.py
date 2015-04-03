@@ -54,7 +54,7 @@ class TestPgPool(BaseWithPool):
 
         self.assertEqual(len(pool), 0)
 
-        with self.assertRaises(pg.PgPoolClosedError):
+        with self.assertRaises(pg.PoolClosed):
             pool.transaction()
 
 
@@ -101,25 +101,25 @@ class TestPgConnection(Base):
         with conn.transaction():
             pass
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.autocommit = True
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.commit()
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.rollback()
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.close()
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.transaction()
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.cursor()
 
-        with self.assertRaises(pg.PgConnectionClosedError):
+        with self.assertRaises(pg.ConnectionClosed):
             conn.reattach()
 
     def test_connection_psycopg2_cursor(self):
@@ -441,7 +441,7 @@ class TestFetch(BaseWithPool):
         self.assertEqual(r1['entity_id'], entity_id)
         self.assertTrue(res.is_closed)
 
-        with self.assertRaises(pg.PgCursorClosedError):
+        with self.assertRaises(pg.CursorClosed):
             res.get()
 
         with self.pool.transaction() as cursor:
@@ -449,7 +449,7 @@ class TestFetch(BaseWithPool):
 
             self.assertTrue(len(res) == 0)
 
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 res.get()
 
     def test_fetch_all(self):
@@ -468,7 +468,7 @@ class TestFetch(BaseWithPool):
         with self.pool.transaction() as cursor:
             res = cursor.execute(q)
 
-        with self.assertRaises(pg.PgCursorClosedError):
+        with self.assertRaises(pg.CursorClosed):
             res.all()
 
     def test_fetch_many(self):
@@ -509,9 +509,9 @@ class TestFetch(BaseWithPool):
 
             res.scroll(0)
             res.scroll(int(cnt / 2))
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 res.scroll(-1)
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 res.scroll(cnt)
 
 

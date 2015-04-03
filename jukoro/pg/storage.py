@@ -2,7 +2,7 @@
 
 from collections import OrderedDict
 
-from jukoro.pg.exceptions import PgAlreadyRegisteredError
+from jukoro.pg.exceptions import AlreadyRegistered
 from jukoro.pg.introspect import inspect
 
 
@@ -451,7 +451,7 @@ _registry = OrderedDict()
 def register(entity_class):
     tn = entity_class.db_table.name
     if tn in _registry:
-        raise PgAlreadyRegisteredError(
+        raise AlreadyRegistered(
             'Model for "%s" already registered' % tn)
     _registry[tn] = Table(entity_class)
 

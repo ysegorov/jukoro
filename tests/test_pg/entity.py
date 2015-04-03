@@ -156,7 +156,7 @@ class TestEntityMeta(BaseWithPool):
 
         with self.pool.transaction() as cursor:
 
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 c = TestEntity.by_id(cursor, cid)
 
             q = 'SELECT * FROM "test_pg" WHERE "entity_id" = %s ' \

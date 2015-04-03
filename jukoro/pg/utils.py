@@ -5,14 +5,14 @@ import urlparse
 
 from jukoro.utils import os_user
 
-from jukoro.pg.exceptions import PgUriError
+from jukoro.pg.exceptions import BadUri
 
 
 def pg_uri_to_kwargs(uri):
     parsed = urlparse.urlparse(uri)
 
     if parsed.scheme != 'postgresql':
-        raise PgUriError('uri must start with "postgresql://"')
+        raise BadUri('uri must start with "postgresql://"')
 
     _user = os_user()
     mapped = (

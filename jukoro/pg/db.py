@@ -26,8 +26,7 @@ from jukoro.decorators import raise_if
 from jukoro.structures import LockRing
 
 from jukoro.pg.exceptions import (
-    PgPoolClosedError, PgConnectionClosedError, PgCursorClosedError,
-    PgDoesNotExistError)
+    PoolClosed, ConnectionClosed, CursorClosed, DoesNotExist)
 from jukoro.pg.utils import pg_uri_to_kwargs
 
 
@@ -53,13 +52,13 @@ def is_closed(instance, *args, **kwargs):
 
 
 # decorator to test if cursor closed
-raise_if_cursor_closed = raise_if(PgCursorClosedError,
+raise_if_cursor_closed = raise_if(CursorClosed,
                                   'cursor closed', is_closed)
 # decorator to test if connection closed
-raise_if_connection_closed = raise_if(PgConnectionClosedError,
+raise_if_connection_closed = raise_if(ConnectionClosed,
                                       'connection closed', is_closed)
 # decorator to test if pool closed
-raise_if_pool_closed = raise_if(PgPoolClosedError,
+raise_if_pool_closed = raise_if(PoolClosed,
                                 'pool closed', is_closed)
 
 
@@ -91,13 +90,13 @@ class PgResult(object):
 
         :returns: fetched from db row
         :rtype:   dict (`psycopg2.extras.RealDictCursor`)
-        :raises PgDoesNotExistError: if query returned no results
+        :raises DoesNotExist: if query returned no results
 
         """
         try:
             return self[0]
         except psycopg2.ProgrammingError:
-            raise PgDoesNotExistError
+            raise DoesNotExist
 
     @raise_if_cursor_closed
     def all(self):
@@ -198,13 +197,13 @@ class PgResult(object):
         Method to scroll to specific position within fetched results
 
         :param pos: (int) position to scroll to
-        :raises PgDoesNotExistError: if position is unavailable
+        :raises DoesNotExist: if position is unavailable
 
         """
         try:
             self._cursor.scroll(pos, 'absolute')
         except (psycopg2.ProgrammingError, IndexError):
-            raise PgDoesNotExistError
+            raise DoesNotExist
 
 
 class PgTransaction(object):
@@ -482,13 +481,13 @@ class PgConnection(object):
         File "<stdin>", line 1, in <module>
         File "jukoro/decorators.py", line 146, in wrapper
             raise exc_type(msg)
-        jukoro.pg.exceptions.PgConnectionClosedError: connection closed
+        jukoro.pg.exceptions.ConnectionClosed: connection closed
         >>> conn.conn
         Traceback (most recent call last):
         File "<stdin>", line 1, in <module>
         File "jukoro/decorators.py", line 146, in wrapper
             raise exc_type(msg)
-        jukoro.pg.exceptions.PgConnectionClosedError: connection closed
+        jukoro.pg.exceptions.ConnectionClosed: connection closed
 
     """
 
@@ -671,7 +670,7 @@ class PgDbPool(object):
         File "<stdin>", line 1, in <module>
         File "jukoro/decorators.py", line 146, in wrapper
             raise exc_type(msg)
-        jukoro.pg.exceptions.PgCursorClosedError: cursor closed
+        jukoro.pg.exceptions.CursorClosed: cursor closed
         >>> pool.close()
         >>> len(pool)
         0

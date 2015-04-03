@@ -209,7 +209,7 @@ class TestQueryViewBuilder(BaseWithPool):
 
             b.delete(cursor)
 
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 TestEntity.by_id(cursor, c.entity_id)
 
     def test_select_order_by_asc(self):
