@@ -14,7 +14,8 @@ Features:
 - historical data (no delete operation in database, works transparently using
   database triggers)
 - way to work using explicitly defined PostgreSQL schema in connection uri
-- global entities numeration within single database
+- global entities enumeration within single database (no repeated ids in
+  different tables in same/another scheme)
 - table per entity approach using unified simple tables structure
   (all tables inherit from master ``entity`` table)
 - ``jsonb`` field to store entities data
