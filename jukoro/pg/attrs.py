@@ -81,6 +81,13 @@ class Attr(object):
 
         self._idx = next(_counter)
 
+    def __repr__(self):
+        return '<Attr(db_index={}, value_type={}, db_not_null={}, ' \
+            'title=\'{}\', maxlen={}, minlen={}, wrapper={})>'.format(
+                self.db_index, self.value_type, self.db_not_null, self.title,
+                self.maxlen, self.minlen, self.wrapper
+            )
+
     @property
     def is_int(self):
         """
@@ -169,6 +176,9 @@ class AttrDescr(object):
 
         """
         return self._slug
+
+    def __repr__(self):
+        return '<AttrDescr(\'{}\', {})>'.format(self._slug, repr(self._attr))
 
     def __get__(self, instance, owner):
         """
