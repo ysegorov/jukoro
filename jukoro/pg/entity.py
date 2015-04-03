@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Basic machinery to work with ``AbstractEntity`` derived classes
+
 Contains:
 
 - :class:`EntityMeta <jukoro.pg.entity.EntityMeta>` - metaclass to make needed
