@@ -1,6 +1,10 @@
 jukoro.arrow package
 ====================
 
+.. contents:: Contents:
+
+Summary
+-------
 
 .. automodule:: jukoro.arrow
     :members:

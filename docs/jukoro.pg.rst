@@ -1,6 +1,10 @@
 jukoro.pg package
 =================
 
+.. contents:: Contents:
+
+Summary
+-------
 
 .. automodule:: jukoro.pg
     :members:

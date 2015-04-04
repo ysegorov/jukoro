@@ -1,6 +1,10 @@
 jukoro.redis package
 ====================
 
+.. contents:: Contents:
+
+Summary
+-------
 
 .. automodule:: jukoro.redis
     :members:
