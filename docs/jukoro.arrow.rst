@@ -1,8 +1,12 @@
 jukoro.arrow package
 ====================
 
-Submodules
-----------
+
+.. automodule:: jukoro.arrow
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :member-order: bysource
 
 jukoro.arrow.base module
 ------------------------
@@ -11,6 +15,7 @@ jukoro.arrow.base module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.arrow.factory module
 ---------------------------
@@ -19,12 +24,4 @@ jukoro.arrow.factory module
     :members:
     :undoc-members:
     :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: jukoro.arrow
-    :members:
-    :undoc-members:
-    :show-inheritance:
+    :member-order: bysource

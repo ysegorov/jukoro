@@ -1,8 +1,12 @@
 jukoro.redis package
 ====================
 
-Submodules
-----------
+
+.. automodule:: jukoro.redis
+    :members:
+    :undoc-members:
+    :show-inheritance:
+    :member-order: bysource
 
 jukoro.redis.cache module
 -------------------------
@@ -11,6 +15,7 @@ jukoro.redis.cache module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.redis.db module
 ----------------------
@@ -19,6 +24,7 @@ jukoro.redis.db module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.redis.exceptions module
 ------------------------------
@@ -27,6 +33,7 @@ jukoro.redis.exceptions module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.redis.lock module
 ------------------------
@@ -35,6 +42,7 @@ jukoro.redis.lock module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.redis.queue module
 -------------------------
@@ -43,12 +51,5 @@ jukoro.redis.queue module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
-
-Module contents
----------------
-
-.. automodule:: jukoro.redis
-    :members:
-    :undoc-members:
-    :show-inheritance:

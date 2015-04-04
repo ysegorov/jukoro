@@ -1,8 +1,11 @@
 jukoro.pg package
 =================
 
-Submodules
-----------
+
+.. automodule:: jukoro.pg
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 jukoro.pg.attrs module
 ----------------------
@@ -11,6 +14,7 @@ jukoro.pg.attrs module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.db module
 -------------------
@@ -19,6 +23,7 @@ jukoro.pg.db module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.entity module
 -----------------------
@@ -27,6 +32,7 @@ jukoro.pg.entity module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.exceptions module
 ---------------------------
@@ -35,6 +41,7 @@ jukoro.pg.exceptions module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.introspect module
 ---------------------------
@@ -43,6 +50,7 @@ jukoro.pg.introspect module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.query module
 ----------------------
@@ -51,6 +59,7 @@ jukoro.pg.query module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.storage module
 ------------------------
@@ -59,6 +68,7 @@ jukoro.pg.storage module
     :members:
     :undoc-members:
     :show-inheritance:
+    :member-order: bysource
 
 jukoro.pg.utils module
 ----------------------
@@ -67,12 +77,4 @@ jukoro.pg.utils module
     :members:
     :undoc-members:
     :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: jukoro.pg
-    :members:
-    :undoc-members:
-    :show-inheritance:
+    :member-order: bysource

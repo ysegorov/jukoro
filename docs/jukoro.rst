@@ -1,8 +1,7 @@
 jukoro package
 ==============
 
-Subpackages
------------
+Contents:
 
 .. toctree::
 
@@ -10,8 +9,13 @@ Subpackages
     jukoro.pg
     jukoro.redis
 
-Submodules
-----------
+.. Module contents
+.. ---------------
+
+.. .. automodule:: jukoro
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 jukoro.base32 module
 --------------------
@@ -65,15 +69,6 @@ jukoro.utils module
 -------------------
 
 .. automodule:: jukoro.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: jukoro
     :members:
     :undoc-members:
     :show-inheritance:
