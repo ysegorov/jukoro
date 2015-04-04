@@ -70,6 +70,7 @@ jukoro.pg.storage module
 
 .. automodule:: jukoro.pg.storage
     :members:
+    :exclude-members: query, suffix
     :undoc-members:
     :show-inheritance:
     :member-order: bysource
