@@ -254,8 +254,10 @@ class QueryViewBuilder(object):
         Creates query to select rows from database view
 
         :param conds:               list of conditions to select rows by
-                                    (can be empty)
+                                    (can be empty,
+                                    see below for supported formats)
         :param kwargs['order_by']:  rules to order data by
+                                    (see below for supported formats)
         :param kwargs['limit']:     limit number of returned rows to
         :param kwargs['offset']:    offset returned rows by
 
@@ -329,7 +331,15 @@ class QueryViewBuilder(object):
 
         Supported ``order_by`` formats:
 
-        TODO
+        - attribute name::
+
+            order_by='attr1'  ## ascending
+            order_by='-attr1' ## descending
+
+        - list of attributes names::
+
+            ## 'attr1' ascending and 'attr2' descending
+            order_by=['attr1', '-attr2']
 
         """
         target, fields = self._target, self.fields
