@@ -337,8 +337,8 @@ class QueryViewBuilder(object):
             '{where}{order_by}{limit}{offset}'
 
         where, params = _transform_conditions(self._klass, *conds)
-        order_by = _transform_order_by(
-            self._klass, kwargs.pop('order_by', None))
+        order_by = _transform_order_by(self._klass,
+                                       kwargs.pop('order_by', []))
         limit, offset = '', ''
 
         if 'limit' in kwargs:
@@ -461,29 +461,29 @@ def _transform_conditions(klass, *conditions):
 
 def _transform_order_by(klass, fields):
     """
-        :klass:   AbstractEntity-based class
-        :fields:  string for a single field ascending sorting or
-                  tuple of tuples for complex sorting
+    :param klass:   AbstractEntity-based class
+    :param fields:  attribute or a list of attributes to sort by,
+                    attribute name can be prefixed with hyphen to indicate
+                    descending sorting
 
-                  examples:
+    Examples::
 
-                      'first_name'
-                      ('first_name', 'last_name')
-                      (('created', 'DESC'), ('accessed', 'ASC'))
+        'first_name'
+        ('first_name', 'last_name')
+        ('-created', 'accessed')
+
     """
     spec = '("doc"->>\'{attr}\')::{cast} {direction}'
     if isinstance(fields, basestring):
-        cast = (getattr(klass, fields)).db_cast
-        return ' ORDER BY %s ' % spec.format(attr=fields,
-                                             cast=cast, direction='ASC')
-    elif isinstance(fields, (list, tuple)):
-        res = []
-        for f in fields:
-            if isinstance(f, (list, tuple)):
-                attr, direction = f
-            else:
-                attr, direction = f, 'ASC'
+        fields = (fields, )
+    res = []
+    fields = (x.strip() for x in fields if x.strip())
+    for attr in fields:
+        direction, cast = 'ASC', 'TEXT'
+        if attr[0] == '-':
+            direction = 'DESC'
+            attr = attr[1:]
+        if hasattr(klass, attr):
             cast = (getattr(klass, attr)).db_cast
-            res.append(spec.format(attr=attr, cast=cast, direction=direction))
-        return ' ORDER BY %s' % ', '.join(res)
-    return ''
+        res.append(spec.format(attr=attr, cast=cast, direction=direction))
+    return ' ORDER BY %s' % ', '.join(res) if res else ''

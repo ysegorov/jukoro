@@ -240,7 +240,7 @@ class TestQueryViewBuilder(BaseWithPool):
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
 
-        q, params = qb.select(order_by=(('attr7', 'DESC'), ))
+        q, params = qb.select(order_by='-attr7')
         self.assertEqual(
             'SELECT "entity_id","doc" FROM "test_pg__live" '
             'ORDER BY ("doc"->>\'attr7\')::BIGINT DESC;', q)
