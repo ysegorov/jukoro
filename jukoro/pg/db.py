@@ -442,7 +442,9 @@ class PgConnection(object):
     :param pool:        instance of ``PgDbPool`` to return connection to
     :param autoclose:   if True closes connection after exit from transaction
 
-    Usage example::
+    Usage example:
+
+    .. code-block:: pycon
 
         >>> from jukoro import pg
         >>> uri = 'postgresql://localhost/jukoro_test.test_schema'
@@ -646,7 +648,9 @@ class PgDbPool(object):
     :param uri:         connection string
     :param pool_size:   size of pool to manage
 
-    Usage example::
+    Usage example:
+
+    .. code-block:: pycon
 
         >>> from jukoro import pg
         >>> uri = 'postgresql://localhost/jukoro_test.test_schema'
