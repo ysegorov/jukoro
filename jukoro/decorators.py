@@ -29,7 +29,7 @@ def profile(quick=False, sort_by='cumtime', stats_limit=40):
     Decorator to profile function or method execution using ``cProfile`` or
     simple time measurement
 
-    :param quick:       use ``cProfile`` if True
+    :param quick:       don't use ``cProfile`` if True
     :param sort_by:     ``pstats.Stats.sort_stats`` method argument to order
                         ``cProfile`` profiling results by
     :param stats_limit: ``pstats.Stats.print_stats`` method argument to limit
