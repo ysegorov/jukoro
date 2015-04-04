@@ -1,9 +1,126 @@
 # -*- coding: utf-8 -*-
+"""
+Provides simplified abstractions to create CRUD queries
+
+- :class:`~jukoro.pg.query.QueryViewBuilder` - query builder expected to work
+  with "live" database data (see :mod:`jukoro.pg.storage` for storage
+  mechanics)
+- :class:`~jukoro.pg.query.QueryBuilderDescr` - Python descriptor to provide
+  access from :class:`Entity <jukoro.pg.entity.AbstractEntity>` to
+  :class:`QueryBuilder <jukoro.pg.query.QueryViewBuilder>`
+
+Roadmap:
+
+- way to work with historical data in read only mode
+- way to namespace fields within query
+- way to nest queries
+
+Example
+-------
+
+Describe :class:`Entity <jukoro.pg.entity.AbstractEntity>`:
+
+.. code-block:: python
+
+    # -*- coding: utf-8 -*-
+    # file: project/entities.py
+
+    from jukoro import arrow
+    from jukoro import pg
+
+
+    class User(pg.AbstractEntity):
+        db_table = 'ju_user'
+
+        username = pg.Attr(title='Username',
+                        db_index=True, db_not_null=True, minlen=4)
+        email = pg.Attr(title='Email',
+                        db_index=True, db_not_null=True, minlen=6)
+        password = pg.Attr(title='Password', db_not_null=True)
+        logged_in = pg.Attr(title='Logged in',
+                            db_index=True,
+                            value_type=arrow.JuArrow,
+                            db_not_null=True)
+
+Usage example:
+
+.. code-block:: ipythonconsole
+
+    In [1]: from project.entities import User
+
+    In [2]: User.db_table
+    Out[2]: <jukoro.pg.storage.DBTableName at 0x7f975037c490>
+
+    In [3]: User.db_table.name
+    Out[3]: 'ju_user'
+
+    In [4]: User.db_view
+    Out[4]: <jukoro.pg.storage.DBViewName at 0x7f975037c4d0>
+
+    In [5]: User.db_view.name
+    Out[5]: 'ju_user__live'
+
+    In [6]: User.qbuilder
+    Out[6]: <jukoro.pg.query.QueryViewBuilder at 0x7f974ac0bf90>
+
+    In [7]: User.qbuilder.by_id(11, 12, 13)
+    Out[7]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE "entity_id" IN %s ORDER BY "entity_id" ASC;',
+    ((11, 12, 13),))
+
+    In [8]: User.qbuilder.select({'username': 'ysegorov'})
+    Out[8]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE ("doc" @> %s);',
+    [{'username': 'ysegorov'}])
+
+    In [9]: User.qbuilder.select({'username': 'ysegorov'}, {'username': 'jmsmith'})
+    Out[9]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE ("doc" @> %s) OR ("doc" @> %s);',
+    [{'username': 'ysegorov'}, {'username': 'jmsmith'}])
+
+    In [10]: User.qbuilder.select({'username': 'ysegorov'}, {'username': 'jmsmith'}, order_by='logged_in')
+    Out[10]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE ("doc" @> %s) OR ("doc" @> %s) ORDER BY ("doc"->>\'logged_in\')::BIGINT ASC;',
+    [{'username': 'ysegorov'}, {'username': 'jmsmith'}])
+
+    In [11]: User.qbuilder.select({'username': 'ysegorov'}, {'username': 'jmsmith'}, order_by=(('logged_in', 'DESC'),))
+    Out[11]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE ("doc" @> %s) OR ("doc" @> %s) ORDER BY ("doc"->>\'logged_in\')::BIGINT DESC;',
+    [{'username': 'ysegorov'}, {'username': 'jmsmith'}])
+
+    In [12]: User.qbuilder.select(limit=40, offset=100)
+    Out[12]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" LIMIT %s  OFFSET %s;',
+    [40, 100])
+
+    In [13]: User.qbuilder.select(order_by=(('logged_in', 'DESC'),), limit=40, offset=100)
+    Out[13]:
+    ('SELECT "entity_id","doc" FROM "ju_user__live" ORDER BY ("doc"->>\'logged_in\')::BIGINT DESC LIMIT %s  OFFSET %s;',
+    [40, 100])
+
+
+Generated query and parameters can be sent to
+:meth:`PgTransaction.execute <jukoro.pg.db.PgTransaction.execute>`
+method to perform query.
+
+"""
 
 
 # TODO become really query builder
 
 class QueryViewBuilder(object):
+    """
+    Query builder expected to create queries for "live" data in database, ie.
+    data available or data to be stored from/to ``*__live`` view
+    (see :mod:`jukoro.pg.storage` for reference).
+
+    :param db_target:       database view name to create queries for
+    :param klass:           :class:`Entity <jukoro.pg.entity.AbstractEntity>`
+                            needed to work with ``Entity's``
+                            :class:`attributes <jukoro.pg.attrs.Attr>`
+                            for proper casts in queries
+
+    """
 
     def __init__(self, db_target, klass):
         self._target = db_target
@@ -11,9 +128,27 @@ class QueryViewBuilder(object):
 
     @property
     def fields(self):
+        """
+        Returns fields of interest to work with in database view
+
+        :rtype:     string
+
+        """
         return '"%s"' % '","'.join(['entity_id', 'doc'])
 
     def by_id(self, *ids):
+        """
+        Creates query to select row/rows from database view by
+        entity_id/multiple ids
+
+        Respects number of ``ids`` to create query using ``IN`` operator
+        or ``=``
+
+        :param ids:     list of ``ids`` to select rows by
+        :returns:       query and query parameters
+        :rtype:         ``tuple`` in form ``(str, tuple)``
+
+        """
         # TODO chunks
         if not ids or not all(ids):
             raise ValueError(
@@ -27,6 +162,18 @@ class QueryViewBuilder(object):
         return (q, params)
 
     def create(self, *entities):
+        """
+        Creates query to create rows in database view returning newly created
+        rows fields
+
+        :param entities:    list of instances of
+                            :class:`Entity <jukoro.pg.entity.AbstractEntity>`
+                            (or of any other type having accessible and
+                            jsonable ``.doc`` attribute)
+        :returns:           query and query parameters
+        :rtype:             ``tuple`` in form ``(str, list)``
+
+        """
         # TODO chunks
         target = self._target
         placeholders = ','.join(['(%s)'] * len(entities))
@@ -38,6 +185,24 @@ class QueryViewBuilder(object):
         return (q, params)
 
     def update(self, *entities):
+        """
+        Creates query to update row/rows in database view returning updated
+        fields
+
+        :param entities:    list of instances of
+                            :class:`Entity <jukoro.pg.entity.AbstractEntity>`
+                            (or of any other type having accessible and
+                            jsonable ``.entity_id`` and ``.doc`` attributes)
+        :returns:           query and query parameters
+        :rtype:             ``tuple`` in form ``(str, tuple)``
+
+        **NB.** query will always update ``doc`` field meaning full "rewrite"
+        of previous value (term "rewrite" in underlying data storage model
+        means previous value will be closed/kept in database storing entity's
+        end-of-live timestamp and new value will be created storing entity's
+        start-of-live timestamp)
+
+        """
         # TODO chunks
         target = self._target
         placeholders, params = [], []
@@ -52,6 +217,22 @@ class QueryViewBuilder(object):
         return (q, params)
 
     def delete(self, *entities):
+        """
+        Creates query to delete row/rows from database view
+
+        Respects number of ``entities`` to create query using ``IN`` operator
+        or ``=``
+
+        :param entities:    list of instances of
+                            :class:`Entity <jukoro.pg.entity.AbstractEntity>`
+                            (or of any other type having accessible and
+                            jsonable ``.entity_id`` attribute)
+        :returns:           query and query parameters
+        :rtype:             ``tuple`` in form ``(str, tuple)``
+        :raises ValueError: if ``not entities or
+                            not all(x.entity_id in entities)``
+
+        """
         # TODO chunks
         entities = filter(None, entities)
         if not entities or not all(x.entity_id for x in entities):
@@ -69,6 +250,88 @@ class QueryViewBuilder(object):
         return (q, params)
 
     def select(self, *conds, **kwargs):
+        """
+        Creates query to select rows from database view
+
+        :param conds:               list of conditions to select rows by
+                                    (can be empty)
+        :param kwargs['order_by']:  rules to order data by
+        :param kwargs['limit']:     limit number of returned rows to
+        :param kwargs['offset']:    offset returned rows by
+
+        Let's assume ``cond`` is a single condition and::
+
+            conds = [cond1, [cond2,] [cond3,] [] ]
+
+        Specifying multiple conditions will transform them to ``OR`` ed
+        conditions in a query like::
+
+            ((cond1) OR (cond2) OR (cond3))
+
+        Supported single condition ``cond`` formats:
+
+        - dictionary::
+
+            {'attr1': 12, 'attr2': 's2'}
+
+          where dictionary is a form of ``AND`` conditions with ``=`` test
+          operator like::
+
+              ("attr1" = 12 AND "attr2" = 's2')
+
+          and is suitable for ``jsonb`` **contains** ``@>`` operator
+
+        - list of triplets::
+
+            [t1, t2, ]
+
+        where each triplet is a standalone condition in a form::
+
+            (attribute, operation, value)
+
+        and supported operations are:
+
+            * **eq** - equality test using ``=`` in sql
+            * **ne** - non-equality test using ``!=`` in sql
+            * **in** - inclusing test using ``IN`` in sql
+            * **lt** - less than test using ``<`` in sql
+            * **lte** - less than or equal test using ``<=`` in sql
+            * **gt** - greater than test using ``>`` in sql
+            * **gte** - greater than or equal test using ``>=`` in sql
+
+        and triplets are ``AND`` ed in a query like::
+
+            (t1 AND t2)
+
+        Conditions examples:
+
+        .. code-block:: ipythonconsole
+
+            In [1]: from project.entities import User
+
+            In [2]: qb = User.qbuilder
+
+            In [3]: qb.select({'first_name': 'Yuri', 'last_name': 'Egorov'}, {'first_name': 'Nick', 'last_name': 'Lomov'})
+            Out[3]:
+            ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE ("doc" @> %s) OR ("doc" @> %s);',
+            [{'first_name': 'Yuri', 'last_name': 'Egorov'},
+            {'first_name': 'Nick', 'last_name': 'Lomov'}])
+
+            In [4]: qb.select((('username', 'in', ['ysegorov', 'nvlomov']),), order_by='username')
+            Out[4]:
+            ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE (("doc"->>\'username\')::TEXT IN %s) ORDER BY ("doc"->>\'username\')::TEXT ASC;',
+            [['ysegorov', 'nvlomov']])
+
+            In [7]: qb.select((('username', 'in', ['ysegorov', 'nvlomov']),), (('email', 'ne', 'root@example.com'), ),  order_by='username')
+            Out[7]:
+            ('SELECT "entity_id","doc" FROM "ju_user__live" WHERE (("doc"->>\'username\')::TEXT IN %s) OR (("doc"->>\'email\')::TEXT != %s) ORDER BY ("doc"->>\'username\')::TEXT ASC;',
+            [['ysegorov', 'nvlomov'], 'root@example.com'])
+
+        Supported ``order_by`` formats:
+
+        TODO
+
+        """
         target, fields = self._target, self.fields
         q = 'SELECT {fields} FROM "{target}"' \
             '{where}{order_by}{limit}{offset}'
@@ -92,6 +355,24 @@ class QueryViewBuilder(object):
 
 
 class QueryBuilderDescr(object):
+    """
+    Python descriptor acting as a factory for ``QueryBuilder`` instances
+    accessed using :attr:`Entity.qbuilder <jukoro.pg.entity.AbstractEntity>`
+    attribute
+
+    It is expected ``qbuilder`` attribute to be accessed from
+    :class:`Entity <jukoro.pg.entity.AbstractEntity>` having ``db_table``
+    attribute defined
+
+    :param db_target_name:  database table or view name to create queries for
+    :param query_builder:   type of ``QueryBuilder`` to create while accessing
+                            :attr:`~jukoro.pg.entity.AbstractEntity.qbuilder`
+                            attribute (defaults to
+                            :class:`~jukoro.pg.query.QueryViewBuilder`)
+    :raises AttributeError: in case ``qbuilder`` attribute was accessed from
+                            Entity instance (must be accessed from class)
+
+    """
 
     def __init__(self, db_target_name, query_builder=None):
         self._target_name = db_target_name
