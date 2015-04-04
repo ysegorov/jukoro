@@ -151,6 +151,8 @@ class AbstractEntity(object):
     __metaclass__ = EntityMeta
     __slots__ = ('_entity_id', '_doc')
 
+    #: Class attribute to have access to
+    #: :class:`query builder <jukoro.pg.query.QueryViewBuilder>`
     qbuilder = None
 
     def __init__(self, entity_id=None, doc=None):
