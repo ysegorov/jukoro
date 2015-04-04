@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Module to work with datetimes using :class:`JuArrow <jukoro.arrow.JuArrow>`
-derived from :class:`Arrow <arrow.Arrow>`
+Package to work with datetimes using :class:`~jukoro.arrow.base.JuArrow`
+derived from :class:`arrow.Arrow`
 
-Usage examples::
+Usage examples:
+
+.. code-block:: pycon
 
     >>> from jukoro import arrow
     >>> arrow.utcnow()
