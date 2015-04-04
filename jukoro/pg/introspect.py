@@ -249,6 +249,7 @@ def inspect(uri):
 
     :param uri:     connection string
     :returns:       tuple of (schema, state)
+    :rtype:         tuple(str, :class:`~jukoro.pg.introspect.State`)
 
     """
 
