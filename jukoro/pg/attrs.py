@@ -106,12 +106,19 @@ class Attr(object):
                  'title', 'maxlen', 'minlen', 'wrapper', '_idx')
 
     def __init__(self, **kwargs):
+        #: Should attribute be indexable or not
         self.db_index = kwargs.pop('db_index', False)
+        #: Python class to declare value type, defaults to ``unicode``
         self.value_type = kwargs.pop('value_type', unicode)
+        #: Should attribute be required or not
         self.db_not_null = kwargs.pop('db_not_null', True)
+        #: Attribute title
         self.title = kwargs.pop('title', 'undefined')
+        #: Attribute maxlen (suitable for text)
         self.maxlen = kwargs.pop('maxlen', 0)
+        #: Attribute minlen (suitable for text)
         self.minlen = kwargs.pop('minlen', 0)
+        #: Callable to wrap entity attribute value with
         self.wrapper = kwargs.pop('wrapper', None)
 
         self._idx = next(_counter)
