@@ -36,7 +36,7 @@ Modules:
 - :mod:`jukoro.pg.query` - abstraction to prepare entities-related sql
   statements to execute
 - :mod:`jukoro.pg.storage` - abstractions to prepare sql statements
-  to synchronize database state with entities declarartions
+  to synchronize database state with entities declarations
 - :mod:`jukoro.pg.utils` - package utils
 
 """
