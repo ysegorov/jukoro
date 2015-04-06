@@ -39,6 +39,10 @@ Modules:
   to synchronize database state with entities declarations
 - :mod:`jukoro.pg.utils` - package utils
 
+Roadmap:
+
+- entity version database field to control updates
+
 NB. There is a bit of magic happening while creating
 :class:`Entity <jukoro.pg.entity.AbstractEntity>`-derived class. See it's
 :class:`Meta <jukoro.pg.entity.EntityMeta>`.
