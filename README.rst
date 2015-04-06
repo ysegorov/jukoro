@@ -17,7 +17,7 @@ Installation
 
 .. code-block:: bash
 
-    $  pip install git+https://github.com/ysegorov/jukoro.git@0.1.0@egg=jukoro
+    $  pip install git+https://github.com/ysegorov/jukoro.git@0.1.0#egg=jukoro
 
 
 Packages and modules
