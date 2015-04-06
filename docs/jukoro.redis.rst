@@ -3,8 +3,8 @@ jukoro.redis package
 
 .. contents:: Contents:
 
-Summary
--------
+Overview
+--------
 
 .. automodule:: jukoro.redis
     :members:

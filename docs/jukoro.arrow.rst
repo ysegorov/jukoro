@@ -3,8 +3,8 @@ jukoro.arrow package
 
 .. contents:: Contents:
 
-Summary
--------
+Overview
+--------
 
 .. automodule:: jukoro.arrow
     :members:

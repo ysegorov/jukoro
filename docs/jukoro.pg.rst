@@ -3,8 +3,8 @@ jukoro.pg package
 
 .. contents:: Contents:
 
-Summary
--------
+Overview
+--------
 
 .. automodule:: jukoro.pg
     :members:

@@ -6,7 +6,14 @@
 Welcome to jukoro's documentation!
 ==================================
 
-Contents:
+Head over to `GitHub <https://github.com/ysegorov/jukoro>`_ for code.
+
+
+.. include:: ../README.rst
+
+
+API documentation
+=================
 
 .. toctree::
    :maxdepth: 4
