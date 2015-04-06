@@ -1,1 +1,2 @@
-recursive-exclude tests *
+include LICENSE.rst README.rst CHANGELOG.rst
+recursive-exclude * *.pyc

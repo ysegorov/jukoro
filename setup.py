@@ -24,7 +24,7 @@ setup(
     author='Egorov Yuri',
     author_email='ysegorov@gmail.com',
     url='https://github.com/ysegorov/jukoro.git',
-    packages=find_packages(exclude=('tests', '*.tests', '*.tests.*')),
+    packages=find_packages(exclude=('tests', 'tests.*')),
     #package_data={'jukoro': []},
     include_package_data=True,
     install_requires=requires,
