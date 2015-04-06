@@ -17,7 +17,7 @@ Installation
 
 .. code-block:: bash
 
-    $  pip install git+https://github.com/ysegorov/jukoro.git@0.1.1#egg=jukoro
+    $  pip install git+https://github.com/ysegorov/jukoro.git@0.1.2#egg=jukoro
 
 
 Documentation
@@ -29,20 +29,36 @@ Is available `here <https://ysegorov.github.io/jukoro>`_.
 Packages and modules
 ====================
 
-- :mod:`jukoro.pg` - package to work with PostgreSQL (see below for a bit of
-  explanation about tables structure) built on top of ``psycopg2``
-- :mod:`jukoro.redis` - package to work with Redis having several useful
-  helpers
-- :mod:`jukoro.arrow` - package built on top of ``arrow`` library
-- :mod:`jukoro.decorators` - module containing some useful decorators
-- :mod:`jukoro.json` - abstraction built on top of Python's stdlib ``json``
-- :mod:`jukoro.pickle` - abstraction built on top of Python's stdlib
-  ``cPickle``
-- :mod:`jukoro.base32` - abstraction built on top of ``base32_crockford``
-  library
-- :mod:`jukoro.email` - email helpers
-- :mod:`jukoro.structures` - some useful structures
-- :mod:`jukoro.utils` - utilities
+- `jukoro.pg <http://ysegorov.github.io/jukoro/jukoro.pg.html>`_ -
+  package to work with PostgreSQL (see below for a bit of
+  explanation about tables structure) built on top of `psycopg2
+  <http://initd.org/psycopg/docs/>`_
+- `jukoro.redis <http://ysegorov.github.io/jukoro/jukoro.redis.html>`_ -
+  package to work with Redis having several useful helpers
+- `jukoro.arrow <http://ysegorov.github.io/jukoro/jukoro.arrow.html>`_ -
+  package built on top of `arrow <http://crsmithdev.com/arrow/>`_ library
+- `jukoro.decorators
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.decorators>`_
+  - module containing some useful decorators
+- `jukoro.json
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.json>`_
+  - abstraction built on top of Python's stdlib ``json``
+- `jukoro.pickle
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.pickle>`_
+  - abstraction built on top of Python's stdlib ``cPickle``
+- `jukoro.base32
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.base32>`_
+  - abstraction built on top of `base32_crockford
+  <https://github.com/jbittel/base32-crockford>`_ library
+- `jukoro.email
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.email>`_
+  - email helpers
+- `jukoro.structures
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.structures>`_
+  - some useful structures
+- `jukoro.utils
+  <http://ysegorov.github.io/jukoro/jukoro.html#module-jukoro.utils>`_
+  - utilities
 
 
 Concept
@@ -65,19 +81,23 @@ Intention is the following:
 Terminology
 ===========
 
-:class:`Entity <jukoro.pg.entity.AbstractEntity>` is a term describing
-some data type abstraction stored in a separate table in PostgreSQL
-(to some extent is an equivalent to Model).
+`Entity
+<http://ysegorov.github.io/jukoro/jukoro.pg.html#jukoro.pg.entity.AbstractEntity>`_
+is a term describing some data type abstraction stored
+in a separate table in PostgreSQL (to some extent is an equivalent to Model).
 
-:class:`Attribute <jukoro.pg.attrs.Attr>` is a term describing some
-``Entity``'s attribute (attribute can be indexable and can have constraints).
+`Attribute
+<http://ysegorov.github.io/jukoro/jukoro.pg.html#jukoro.pg.attrs.Attr>`_
+is a term describing some ``Entity``'s attribute
+(attribute can be indexable and can have constraints).
 
 
 PostgreSQL tables structure
 ===========================
 
-Please pay attention to :mod:`jukoro.pg.storage` module to understand
-underlying tables structure.
+Please pay attention to `jukoro.pg.storage
+<http://ysegorov.github.io/jukoro/jukoro.pg.html#module-jukoro.pg.storage>`_
+module to understand underlying tables structure.
 
 There is one master per schema table called ``entity`` defined as:
 
@@ -95,8 +115,9 @@ There is one master per schema table called ``entity`` defined as:
 
 This table will never be touched for CRUD operations and supposed to be empty.
 
-Every :func:`registered <jukoro.pg.storage.register>` ``Entity`` described
-like
+Every `registered
+<http://ysegorov.github.io/jukoro/jukoro.pg.html#jukoro.pg.storage.register>`_
+``Entity`` described like
 
 .. code-block:: python
 
@@ -127,11 +148,12 @@ and view defined as
         WHERE "entity_start" <= now() AND "entity_end" > now();
 
 
-.. note:: There is no need to manually register :class:`Entity
-    <jukoro.pg.entity.AbstractEntity>`-derived class except for very special
+.. note:: There is no need to manually register `Entity
+    <http://ysegorov.github.io/jukoro/jukoro.pg.html#jukoro.pg.entity.AbstractEntity>`_
+    -derived class except for very special
     cases. By default every class definition having ``db_table`` attribute
-    defined will be registered (see :class:`it's metaclass
-    <jukoro.pg.entity.EntityMeta>`).
+    defined will be registered (see `metaclass
+    <http://ysegorov.github.io/jukoro/jukoro.pg.html#jukoro.pg.entity.EntityMeta>`_).
 
 In general case all CRUD operations will go to ``__live`` table view as it is
 updatable_.
