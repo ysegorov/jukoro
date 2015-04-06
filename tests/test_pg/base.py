@@ -7,7 +7,7 @@ from jukoro import arrow
 from jukoro import pg
 
 
-class TestEntity(pg.BaseEntity):
+class TestEntity(pg.AbstractEntity):
     db_table = 'test_pg'
 
     attr1 = pg.Attr(title='Attr 1',

@@ -23,7 +23,7 @@ class TestAttr(Base):
         self.assertTrue(a.is_text)
         self.assertFalse(a.db_index)
         self.assertTrue(a.db_not_null)
-        self.assertEqual(a.db_cast(), 'TEXT')
+        self.assertEqual(a.db_cast, 'TEXT')
         self.assertEqual(a.title, 'a')
         self.assertGreater(a.idx, 0)
 
@@ -32,14 +32,14 @@ class TestAttr(Base):
         self.assertIs(b.value_type, int)
         self.assertTrue(b.is_int)
         self.assertFalse(b.is_text)
-        self.assertEqual(b.db_cast(), 'BIGINT')
+        self.assertEqual(b.db_cast, 'BIGINT')
 
     def test_c(self):
         c = pg.Attr(title='c', value_type=arrow.JuArrow)
         self.assertIs(c.value_type, arrow.JuArrow)
         self.assertTrue(c.is_int)
         self.assertFalse(c.is_text)
-        self.assertEqual(c.db_cast(), 'BIGINT')
+        self.assertEqual(c.db_cast, 'BIGINT')
 
     def test_d(self):
         c = pg.Attr(title='c', value_type=arrow.JuArrow)
@@ -57,7 +57,7 @@ class TestAttrs(Base):
     @classmethod
     def setUpClass(cls):
 
-        class User(pg.BaseUser):
+        class User(pg.AbstractUser):
             db_table = 'test_user'
 
             first_name = pg.Attr(title='First name')
@@ -71,7 +71,7 @@ class TestAttrs(Base):
         cls.User = None
 
     def test_attrs_inheritance(self):
-        BU = pg.BaseUser
+        BU = pg.AbstractUser
 
         self.assertTrue(hasattr(BU, 'username'))
         self.assertTrue(hasattr(BU, 'email'))

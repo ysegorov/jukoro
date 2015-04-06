@@ -8,7 +8,7 @@ from jukoro import version
 
 
 requires = [
-    'Cython>=0.21.0',
+    # 'Cython>=0.21.0',
     'redis>=2.10.0',
     'hiredis>=0.1.0',
     'psycopg2>=2.5.0',
@@ -24,7 +24,7 @@ setup(
     author='Egorov Yuri',
     author_email='ysegorov@gmail.com',
     url='https://github.com/ysegorov/jukoro.git',
-    packages=find_packages(exclude='tests'),
+    packages=find_packages(exclude=('tests', 'tests.*')),
     #package_data={'jukoro': []},
     include_package_data=True,
     install_requires=requires,

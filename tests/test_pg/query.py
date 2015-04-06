@@ -23,7 +23,7 @@ class TestQueryBuilderDescr(Base):
         self.assertIsInstance(q, pg.QueryViewBuilder)
 
         with self.assertRaises(AttributeError):
-            pg.BaseEntity.qbuilder.by_id
+            pg.AbstractEntity.qbuilder.by_id
 
         a = TestEntity()
         with self.assertRaises(AttributeError):
@@ -209,7 +209,7 @@ class TestQueryViewBuilder(BaseWithPool):
 
             b.delete(cursor)
 
-            with self.assertRaises(pg.PgDoesNotExistError):
+            with self.assertRaises(pg.DoesNotExist):
                 TestEntity.by_id(cursor, c.entity_id)
 
     def test_select_order_by_asc(self):
@@ -240,7 +240,7 @@ class TestQueryViewBuilder(BaseWithPool):
         vn = 'test_pg__live'
         qb = pg.QueryViewBuilder(vn, TestEntity)
 
-        q, params = qb.select(order_by=(('attr7', 'DESC'), ))
+        q, params = qb.select(order_by='-attr7')
         self.assertEqual(
             'SELECT "entity_id","doc" FROM "test_pg__live" '
             'ORDER BY ("doc"->>\'attr7\')::BIGINT DESC;', q)

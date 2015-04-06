@@ -29,5 +29,5 @@ class TestPgUriToKwargs(Base):
         self.assertNotEqual(kwargs['schema'], 'public')
 
     def test_uri_to_kwargs_bad(self):
-        self.assertRaises(pg.PgUriError,
-                          lambda: pg.pg_uri_to_kwargs(self.bad_uri()))
+        with self.assertRaises(pg.BadUri):
+            pg.pg_uri_to_kwargs(self.bad_uri())

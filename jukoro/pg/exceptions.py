@@ -5,25 +5,25 @@ class PgError(Exception):
     """ Base pg exception class """
 
 
-class PgUriError(PgError):
+class BadUri(PgError):
     """ Pg uri parsing error """
 
 
-class PgAlreadyRegisteredError(PgError):
+class AlreadyRegistered(PgError):
     """ Entity class registered error """
 
 
-class PgPoolClosedError(PgError):
+class PoolClosed(PgError):
     """ Pool closed error """
 
 
-class PgConnectionClosedError(PgError):
+class ConnectionClosed(PgError):
     """ Connection closed error """
 
 
-class PgCursorClosedError(PgError):
+class CursorClosed(PgError):
     """ Cursor closed error """
 
 
-class PgDoesNotExistError(PgError):
+class DoesNotExist(PgError):
     """ Query returned nothing error """
