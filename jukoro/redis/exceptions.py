@@ -11,3 +11,7 @@ class AlreadyLocked(JukoroRedisException):
 
 class QueueError(JukoroRedisException):
     """ Exception for queue error """
+
+
+class NotRegisteredScript(JukoroRedisException):
+    """ Exception raised if Lua script is not registered """

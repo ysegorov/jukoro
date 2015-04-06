@@ -10,6 +10,8 @@ import logging
 
 import redis
 
+from jukoro.redis.exceptions import NotRegisteredScript
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +27,28 @@ class Lua(object):
     """
     Lua script to be registered within Redis abstraction
 
-    """
+    :param script:  script to register
 
-    def __init__(self):
-        self.strict_release = None
+    """
+    __slots__ = ('_script', '_lua')
+
+    def __init__(self, script):
+        self._script = script
+        self._lua = None
 
     def register(self, conn):
-        self.strict_release = conn.register_script(STRICT_RELEASE)
+        self._lua = conn.register_script(self._script)
+
+    def __call__(self, keys, args):
+        if self._lua is None:
+            raise NotRegisteredScript
+        return self._lua(keys=keys, args=args)
 
 
 class RedisDb(object):
     """
-    ``StrictRedis`` proxy supporting namespaced ``Redis`` keys and custom
-    ``Lua`` scripts (not extendable yet)
+    Proxy for ``StrictRedis`` supporting namespaced ``Redis`` keys and custom
+    ``Lua`` scripts
 
     :param uri:     connection uri
     :param ns:      namespace for keys
@@ -48,7 +59,7 @@ class RedisDb(object):
         self._db = None
         self._uri = uri
         self._ns = ns
-        self._lua = Lua()
+        self.strict_release = Lua(STRICT_RELEASE)
 
     @property
     def db(self):
@@ -61,7 +72,7 @@ class RedisDb(object):
         """
         if self._db is None:
             self._db = redis.StrictRedis.from_url(self._uri)
-            self._lua.register(self._db)
+            self.strict_release.register(self._db)
         return self._db
 
     def key(self, name):
@@ -72,12 +83,6 @@ class RedisDb(object):
 
         """
         return '{}:{}'.format(self._ns, name)
-
-    def strict_release(self, keys, args):
-        """
-        Calls registered ``Lua`` script
-        """
-        return self._lua.strict_release(keys=keys, args=args)
 
     def __getattr__(self, name):
         return getattr(self.db, name)
