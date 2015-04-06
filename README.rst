@@ -20,6 +20,12 @@ Installation
     $  pip install git+https://github.com/ysegorov/jukoro.git@0.1.0#egg=jukoro
 
 
+Documentation
+=============
+
+Is available `here <https://ysegorov.github.io/jukoro>`_.
+
+
 Packages and modules
 ====================
 
@@ -172,8 +178,8 @@ You can keep PostgreSQL test db schema created during tests with
     $ KEEP_SCHEMA=y nosetests
 
 
-Docs
-====
+Docs generation
+===============
 
 For proper ``ipython`` code blocks highlights within documentation run:
 
