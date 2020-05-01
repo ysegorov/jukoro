@@ -1,3 +1,4 @@
+**This project is archived.**
 
 About
 =====
@@ -23,7 +24,7 @@ Installation
 Documentation
 =============
 
-Is available `here <https://ysegorov.github.io/jukoro>`_.
+Is not available online but you can check `docs` folder for it.
 
 
 Packages and modules
